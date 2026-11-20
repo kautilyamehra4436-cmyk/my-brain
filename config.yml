@@ -1,7 +1,21 @@
-# Central Config
+# Central Config — strict zero-cost policy
 version: v9.0
 language: hi
 timezone: Asia/Kolkata
+
+spending:
+  hard_zero: true
+  currency: INR
+  allowed_spend: 0
+  paid_services: false
+  paid_api: false
+  paid_hosting: false
+  subscriptions: false
+  credit_or_debt: false
+  auto_renewal: false
+  auto_reinvestment: false
+  stop_on_free_quota_exhaustion: true
+  owner_approval_does_not_override_zero_spend: true
 
 health:
   target: 70
@@ -9,8 +23,9 @@ health:
 
 gates:
   money:
-    tier2: 500
-    tier3: 5000
+    tier2: 0
+    tier3: 0
+    spending_blocked: true
   legal:
     cooling_hours: 24
 
@@ -24,6 +39,6 @@ legacy:
   days_inactive: 30
 
 caps:
-  per_run: 500
-  per_day: 2000
-  per_month: 10000
+  per_run: 0
+  per_day: 0
+  per_month: 0
