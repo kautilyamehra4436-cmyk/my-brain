@@ -1,0 +1,108 @@
+{
+  "version": "1.0",
+  "policy": {
+    "hard_zero_spend": true,
+    "paid_services_allowed": false,
+    "auto_spend": false,
+    "credit_or_trial_autorenew": false,
+    "approval_required_for_any_money": false
+  },
+  "tools": [
+    {
+      "id": "github",
+      "name": "GitHub",
+      "kind": "repository_and_version_control",
+      "open_source": false,
+      "cost": "free-tier only",
+      "status": "connected_verified",
+      "role": "source files, version history, manual owner control"
+    },
+    {
+      "id": "github_actions",
+      "name": "GitHub Actions",
+      "kind": "automation_runner",
+      "open_source": false,
+      "cost": "free quota only; stop before any paid usage",
+      "status": "planned_not_runtime_verified",
+      "role": "scheduled checks/automation"
+    },
+    {
+      "id": "termux",
+      "name": "Termux",
+      "kind": "android_local_runtime",
+      "open_source": true,
+      "cost": "free",
+      "status": "candidate_not_installed_verified",
+      "role": "phone-side Python/shell runtime"
+    },
+    {
+      "id": "python",
+      "name": "Python",
+      "kind": "runtime",
+      "open_source": true,
+      "cost": "free",
+      "status": "candidate",
+      "role": "lightweight logic and adapters"
+    },
+    {
+      "id": "sqlite",
+      "name": "SQLite",
+      "kind": "database",
+      "open_source": true,
+      "cost": "free",
+      "status": "candidate",
+      "role": "local ledger/tasks/audit"
+    },
+    {
+      "id": "n8n",
+      "name": "n8n",
+      "kind": "workflow_automation",
+      "open_source": true,
+      "cost": "self-host free; hosted paid not allowed",
+      "status": "candidate_not_deployed",
+      "role": "workflow automation if zero-cost hosting/runtime is feasible"
+    },
+    {
+      "id": "huginn",
+      "name": "Huginn",
+      "kind": "event_automation",
+      "open_source": true,
+      "cost": "self-host free; hosting must remain zero-cost",
+      "status": "candidate_not_deployed",
+      "role": "event monitoring automation; only if practical"
+    },
+    {
+      "id": "activepieces",
+      "name": "Activepieces",
+      "kind": "workflow_automation",
+      "open_source": true,
+      "cost": "self-host/community options; paid/cloud excluded",
+      "status": "candidate_not_deployed",
+      "role": "automation alternative; compare resource and license constraints"
+    },
+    {
+      "id": "ollama",
+      "name": "Ollama",
+      "kind": "local_model_runtime",
+      "open_source": true,
+      "cost": "free software; hardware/data costs still apply",
+      "status": "not_suitable_for_phone_only_unless_supported",
+      "role": "local AI only if device capability verified; not required"
+    },
+    {
+      "id": "git",
+      "name": "Git",
+      "kind": "version_control",
+      "open_source": true,
+      "cost": "free",
+      "status": "candidate",
+      "role": "local history and rollback"
+    }
+  ],
+  "rules": [
+    "No payment, subscription, purchase, credit, paid API, paid hosting, or auto-renewal.",
+    "No service may be marked connected unless connection or execution is verified.",
+    "A tool can be recorded as candidate without being installed or connected.",
+    "If free quota/resource limits are reached, pause and report; do not incur charges."
+  ]
+}
