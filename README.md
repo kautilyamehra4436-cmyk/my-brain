@@ -8,6 +8,12 @@
 ## 🚀 Quick Start
 `START_HERE.md` → `onboarding.md`
 
+## 🧪 First runtime slice
+- `RUNTIME_QUICKSTART.md`: setup, examples and test command.
+- `core/zero_cost_guard.py`: fail-closed helper for cost/quota/sensitive-action checks.
+- `core/task_queue.py`: local SQLite task queue and audit log; it does not execute tasks.
+- Tests: run `python -m unittest discover -v`. 7 tests passed in the assistant's test environment; Android phone execution is still pending.
+
 ## 🔌 Integrations
 - `INTEGRATIONS.md`: open-source/free tools, integration order, caveats, status.
 - `integrations/registry.json`: machine-readable registry.
