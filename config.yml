@@ -1,0 +1,29 @@
+# Central Config
+version: v9.0
+language: hi
+timezone: Asia/Kolkata
+
+health:
+  target: 70
+  critical: 30
+
+gates:
+  money:
+    tier2: 500
+    tier3: 5000
+  legal:
+    cooling_hours: 24
+
+tasks:
+  p0_priority: true
+
+dream:
+  schedule: "0 2 * * *"
+
+legacy:
+  days_inactive: 30
+
+caps:
+  per_run: 500
+  per_day: 2000
+  per_month: 10000
