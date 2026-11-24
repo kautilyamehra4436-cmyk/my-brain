@@ -9,12 +9,14 @@
 `START_HERE.md` → `onboarding.md`
 
 ## 🧪 Runtime / tests
+
+Example: `python -m core.atc_planner --ledger atc.db think "My goal" --constraint "phone-only" --constraint "zero cost"`. Add `--enqueue` only to store plan-only steps in the existing queue; it does not execute them. `python -m core.atc_planner --ledger atc.db status` checks the ledger.
 - `RUNTIME_QUICKSTART.md`: setup, examples and test command.
 - `core/zero_cost_guard.py`: fail-closed helper for cost/quota/sensitive-action checks.
 - `core/task_queue.py`: local SQLite task queue and audit log; it does not execute tasks.
 - `core/atc_planner.py`: ATC Thinking/Planning Core v1.2 (review branch); rule-based draft plans, risk flags, heuristic strategy comparison, SQLite integrity ledger. No LLM, web research or task execution.
 - ATC integration map/FIR: `docs/ATC_INTEGRATION_MAP.md`, `docs/ATC_FIR_v1.2.md`.
-- Local tests on the integration branch: 30/30 passed in the assistant test environment; GitHub Actions verification pending. Android/Termux remains untested.
+- Local tests on the integration branch: 32/32 passed (25 ATC + 7 existing runtime tests); GitHub Actions verification pending. Android/Termux remains untested.
 
 ## 🔌 Integrations
 - `INTEGRATIONS.md`: open-source/free tools, integration order, caveats, status.
