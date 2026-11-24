@@ -3,7 +3,7 @@
 **Date:** 2026-11-24
 **Project:** My Brain / Advait Autonomous Thinking Core
 **Repository branch:** `atc-integration-20261124`
-**Status:** Implemented on review branch; 32/32 local tests pass; GitHub Actions runs #18, #23 and #28 PASS (32/32); latest #28: https://github.com/kautilyamehra4436-cmyk/my-brain/actions/runs/45318741234; not production-ready.
+**Status:** Implemented on review branch; 32/32 local tests pass; GitHub Actions runs #18, #23 and #28 PASS (32/32); latest #33: https://github.com/kautilyamehra4436-cmyk/my-brain/actions/runs/45318803981; not production-ready.
 
 ## Change
 ATC is placed as a planning layer in `my-brain/core/atc_planner.py`, using the existing `zero_cost_guard` and optionally storing draft steps in `TaskQueue`. It does not create a second task queue or executor.
@@ -23,7 +23,7 @@ ATC is placed as a planning layer in `my-brain/core/atc_planner.py`, using the e
 - Hash-chain and stored-record tampering tests pass.
 
 ## Not verified
-Phone/Termux, long-duration/24-hour run, Android resource use, real research, LLM reasoning, real customer tasks, external execution, earnings, secure owner approval, production reliability, and GitHub Actions runs #18/#23/#28 passed; Android/Termux remains untested.
+Phone/Termux, long-duration/24-hour run, Android resource use, real research, LLM reasoning, real customer tasks, external execution, earnings, secure owner approval, production reliability, and GitHub Actions runs #18/#23/#28/#33 passed; Android/Termux remains untested.
 
 ## Reconciliation
 The integration map and repository reconciliation report document placement, conflicts and security findings across the reviewed engines. No existing policy is silently changed.
