@@ -23,7 +23,7 @@ ATC is placed as a planning layer in `my-brain/core/atc_planner.py`, using the e
 - Hash-chain and stored-record tampering tests pass.
 
 ## Not verified
-Phone/Termux, long-duration/24-hour run, Android resource use, real research, LLM reasoning, real customer tasks, external execution, earnings, secure owner approval, production reliability, and GitHub Actions runs #18/#23/#28/#33 passed; Android/Termux remains untested.
+Phone/Termux, long-duration/24-hour run, Android resource use, real research, LLM reasoning, real customer tasks, external execution, earnings, secure owner approval, production reliability, and GitHub Actions runs #18/#23/#28/#33/#38 passed; Android/Termux remains untested.
 
 ## Reconciliation
 The integration map and repository reconciliation report document placement, conflicts and security findings across the reviewed engines. No existing policy is silently changed.
