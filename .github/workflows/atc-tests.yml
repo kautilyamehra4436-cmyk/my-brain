@@ -1,0 +1,23 @@
+name: ATC local test suite
+on:
+  push:
+    branches:
+      - "**"
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Run unit tests
+        run: python -m unittest discover -v
+      - name: Compile core and tests
+        run: python -m compileall -q core tests
