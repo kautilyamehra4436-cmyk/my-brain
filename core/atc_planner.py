@@ -231,7 +231,7 @@ def main(argv: Optional[list[str]] = None) -> int:
     think_cmd.add_argument("--context", default="")
     think_cmd.add_argument("--constraint", action="append", default=[])
     think_cmd.add_argument("--cost", default="0", help="Cost of local planning run; nonzero/unknown blocks")
-    think_cmd.add_argument("--quota-available", action="store_true", default=True)
+    think_cmd.add_argument("--quota-exhausted", action="store_true", help="Block if no free quota remains")
     think_cmd.add_argument("--enqueue", action="store_true", help="Store plan-only steps in the existing task queue")
     think_cmd.add_argument("--queue-db", default="brain_tasks.db")
     sub.add_parser("status", help="Show planner capabilities and ledger integrity")
@@ -239,7 +239,7 @@ def main(argv: Optional[list[str]] = None) -> int:
     planner = ATCPlanner(args.ledger)
     if args.command == "think":
         try:
-            record = planner.think(args.goal, args.context, args.constraint, args.cost, args.quota_available)
+            record = planner.think(args.goal, args.context, args.constraint, estimated_cost=args.cost, free_quota_available=not args.quota_exhausted)
         except (ValueError, PermissionError) as exc:
             print(json.dumps({"error": str(exc)}, ensure_ascii=False, indent=2))
             return 2
