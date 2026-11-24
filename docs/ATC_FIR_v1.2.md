@@ -26,4 +26,4 @@ ATC is placed as a planning layer in `my-brain/core/atc_planner.py`, using the e
 Phone/Termux, long-duration/24-hour run, Android resource use, real research, LLM reasoning, real customer tasks, external execution, earnings, secure owner approval, production reliability, and GitHub Actions for this branch.
 
 ## Reconciliation
-The integration map documents where each existing engine fits and the conflicts found in the current My Brain files. No existing policy is silently changed.
+The integration map and repository reconciliation report document placement, conflicts and security findings across the reviewed engines. No existing policy is silently changed.
