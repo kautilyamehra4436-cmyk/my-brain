@@ -64,13 +64,13 @@ class ATCPlannerTests(unittest.TestCase):
         self.assertTrue(self.planner.ledger.verify()["valid"])
     def test_ledger_tamper_detected(self):
         self.planner.think("first")
-        with closing(sqlite_connect(self.db)) as con:
+        with closing(sqlite3_connect(self.db)) as con:
             con.execute("UPDATE atc_events SET event_json='{}' WHERE seq=1")
             con.commit()
         self.assertFalse(self.planner.ledger.verify()["valid"])
     def test_record_tamper_detected(self):
         r = self.planner.think("record integrity")
-        with closing(sqlite_connect(self.db)) as con:
+        with closing(sqlite3_connect(self.db)) as con:
             con.execute("UPDATE atc_records SET record_json='{}' WHERE record_id=?", (r["record_id"],))
             con.commit()
         self.assertFalse(self.planner.ledger.verify()["valid"])
