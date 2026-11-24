@@ -16,7 +16,7 @@ Example: `python -m core.atc_planner --ledger atc.db think "My goal" --constrain
 - `core/task_queue.py`: local SQLite task queue and audit log; it does not execute tasks.
 - `core/atc_planner.py`: ATC Thinking/Planning Core v1.2 (review branch); rule-based draft plans, risk flags, heuristic strategy comparison, SQLite integrity ledger. No LLM, web research or task execution.
 - ATC integration map/FIR: `docs/ATC_INTEGRATION_MAP.md`, `docs/ATC_FIR_v1.2.md`.
-- Local tests on the integration branch: 32/32 passed (25 ATC + 7 existing runtime tests); GitHub Actions verification pending. Android/Termux remains untested.
+- Local tests on the integration branch: 32/32 passed (25 ATC + 7 existing runtime tests); GitHub Actions run #18 passed (32/32). Android/Termux remains untested.
 
 ## 🔌 Integrations
 - `INTEGRATIONS.md`: open-source/free tools, integration order, caveats, status.
