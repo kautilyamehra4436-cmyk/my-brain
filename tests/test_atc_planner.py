@@ -1,3 +1,6 @@
+import json
+import subprocess
+import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -93,6 +96,18 @@ class ATCPlannerTests(unittest.TestCase):
         r = self.planner.think("research a topic")
         self.assertEqual(r["evidence_status"], "NOT_COLLECTED")
         self.assertIn("No live research", r["critic_findings"][0])
+    def test_cli_think_emits_json_draft(self):
+        cmd = [sys.executable, "-m", "core.atc_planner", "--ledger", str(self.db), "think", "cli goal"]
+        proc = subprocess.run(cmd, capture_output=True, text=True, cwd=Path(__file__).resolve().parents[1], timeout=10)
+        self.assertEqual(proc.returncode, 0, proc.stderr)
+        record = json.loads(proc.stdout)
+        self.assertEqual(record["status"], "DRAFT_PLAN")
+        self.assertEqual(record["execution_status"], "NOT_EXECUTED")
+    def test_cli_status_reports_integrity(self):
+        cmd = [sys.executable, "-m", "core.atc_planner", "--ledger", str(self.db), "status"]
+        proc = subprocess.run(cmd, capture_output=True, text=True, cwd=Path(__file__).resolve().parents[1], timeout=10)
+        self.assertEqual(proc.returncode, 0, proc.stderr)
+        self.assertTrue(json.loads(proc.stdout)["ledger_integrity"]["valid"])
     def test_version(self): self.assertEqual(VERSION, "ATC-1.2.0")
 
 def sqlite3_connect(path):
