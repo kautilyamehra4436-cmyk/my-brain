@@ -5,9 +5,9 @@ stores plan steps and never executes them.
 """
 from __future__ import annotations
 
+import argparse
 import hashlib
 import json
-import re
 import sqlite3
 from contextlib import closing
 import time
@@ -211,7 +211,8 @@ class ATCPlanner:
         for step in record["plan_steps"]:
             title = f"ATC {record['record_id']} · Step {step['step']}: {step['task']}"
             payload = {"atc_record_id": record["record_id"], "step": step["step"],
-                       "status": "plan_only", "approval_required": step["approval_required"]}
+                       "status": "plan_only", "approval_required": step["approval_required"],
+                       "risk_flags": record.get("risk_flags", [])}
             ids.append(queue.enqueue(title, payload))
         return ids
 
@@ -219,3 +220,37 @@ class ATCPlanner:
         return {"version": VERSION, "ledger_path": self.ledger.path, "ledger_integrity": self.ledger.verify(),
                 "capabilities": ["rule_based_planning", "heuristic_strategy_comparison", "risk_keyword_flags", "sqlite_audit_chain"],
                 "not_implemented": ["LLM reasoning", "live research", "external execution", "secure owner authentication", "background scheduler", "phone runtime verification"]}
+
+
+def main(argv: Optional[list[str]] = None) -> int:
+    parser = argparse.ArgumentParser(description="ATC local-first draft planner (no execution)")
+    parser.add_argument("--ledger", default="atc_thinking.db", help="SQLite ledger path")
+    sub = parser.add_subparsers(dest="command", required=True)
+    think_cmd = sub.add_parser("think", help="Create a draft thinking record")
+    think_cmd.add_argument("goal")
+    think_cmd.add_argument("--context", default="")
+    think_cmd.add_argument("--constraint", action="append", default=[])
+    think_cmd.add_argument("--cost", default="0", help="Cost of local planning run; nonzero/unknown blocks")
+    think_cmd.add_argument("--quota-available", action="store_true", default=True)
+    think_cmd.add_argument("--enqueue", action="store_true", help="Store plan-only steps in the existing task queue")
+    think_cmd.add_argument("--queue-db", default="brain_tasks.db")
+    sub.add_parser("status", help="Show planner capabilities and ledger integrity")
+    args = parser.parse_args(argv)
+    planner = ATCPlanner(args.ledger)
+    if args.command == "think":
+        try:
+            record = planner.think(args.goal, args.context, args.constraint, args.cost, args.quota_available)
+        except (ValueError, PermissionError) as exc:
+            print(json.dumps({"error": str(exc)}, ensure_ascii=False, indent=2))
+            return 2
+        if args.enqueue:
+            from core.task_queue import TaskQueue
+            record["queued_task_ids"] = planner.enqueue_plan(TaskQueue(args.queue_db), record)
+        print(json.dumps(record, ensure_ascii=False, indent=2))
+        return 0
+    print(json.dumps(planner.status(), ensure_ascii=False, indent=2))
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
