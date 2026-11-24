@@ -10,13 +10,20 @@
 
 ## 🧪 Runtime / tests
 
-Example: `python -m core.atc_planner --ledger atc.db think "My goal" --constraint "phone-only" --constraint "zero cost"`. Add Use `--quota-exhausted` to fail closed if quota is exhausted; `--enqueue` only to store plan-only steps in the existing queue; it does not execute them. `python -m core.atc_planner --ledger atc.db status` checks the ledger.
+Create a draft plan:
+```sh
+python -m core.atc_planner --ledger atc.db think "My goal" --constraint "phone-only" --constraint "zero cost"
+python -m core.atc_planner --ledger atc.db think "My goal" --quota-exhausted
+python -m core.atc_planner --ledger atc.db status
+```
+Add `--enqueue` only to store plan-only steps in the existing queue; it does not execute them.
+
 - `RUNTIME_QUICKSTART.md`: setup, examples and test command.
 - `core/zero_cost_guard.py`: fail-closed helper for cost/quota/sensitive-action checks.
 - `core/task_queue.py`: local SQLite task queue and audit log; it does not execute tasks.
-- `core/atc_planner.py`: ATC Thinking/Planning Core v1.2 (review branch); rule-based draft plans, risk flags, heuristic strategy comparison, SQLite integrity ledger. No LLM, web research or task execution.
+- `core/atc_planner.py`: ATC Thinking/Planning Core v1.2, merged to main; rule-based draft plans, risk flags, heuristic strategy comparison, SQLite integrity ledger. No LLM, web research or task execution.
 - ATC integration map/FIR: `docs/ATC_INTEGRATION_MAP.md`, `docs/ATC_FIR_v1.2.md`.
-- Local tests on the integration branch: 33/33 passed (26 ATC + 7 existing runtime tests); GitHub Actions runs #18 and #23 and #28 passed (33/33); #28 is latest. Android/Termux remains untested.
+- GitHub Actions run #72: 38/38 tests passed (26 planner + 7 runtime + 5 handoff) and compile checks. Android/Termux and 24-hour stability remain untested.
 
 ## 🔌 Integrations
 - `INTEGRATIONS.md`: open-source/free tools, integration order, caveats, status.
