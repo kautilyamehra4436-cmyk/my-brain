@@ -103,6 +103,11 @@ class ATCPlannerTests(unittest.TestCase):
         record = json.loads(proc.stdout)
         self.assertEqual(record["status"], "DRAFT_PLAN")
         self.assertEqual(record["execution_status"], "NOT_EXECUTED")
+    def test_cli_quota_exhaustion_fails_closed(self):
+        cmd = [sys.executable, "-m", "core.atc_planner", "--ledger", str(self.db), "think", "cli goal", "--quota-exhausted"]
+        proc = subprocess.run(cmd, capture_output=True, text=True, cwd=Path(__file__).resolve().parents[1], timeout=10)
+        self.assertEqual(proc.returncode, 2)
+        self.assertIn("Zero-cost gate blocked", proc.stdout)
     def test_cli_status_reports_integrity(self):
         cmd = [sys.executable, "-m", "core.atc_planner", "--ledger", str(self.db), "status"]
         proc = subprocess.run(cmd, capture_output=True, text=True, cwd=Path(__file__).resolve().parents[1], timeout=10)
