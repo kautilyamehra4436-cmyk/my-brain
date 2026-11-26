@@ -13,11 +13,15 @@ MAX_TASK_PAYLOAD_BYTES = 65_536
 MAX_TASK_RESULT_BYTES = 65_536
 MAX_TASK_TITLE_CHARS = 200
 SENSITIVE_KEYS = {
-    "approval_token", "owner_token", "api_key", "secret", "password",
-    "authorization", "credential", "credentials", "access_token",
-    "refresh_token", "private_key", "webhook_secret",
+    "approval_token", "owner_token", "api_key", "secret", "password", "token",
+    "authorization", "credential", "credentials", "access_token", "access_key",
+    "refresh_token", "private_key", "webhook_secret", "client_secret",
+    "secret_access_key", "secret_key", "signing_key",
 }
-SENSITIVE_SUFFIXES = ("_token", "_secret", "_password", "_credential", "_private_key", "_api_key")
+SENSITIVE_SUFFIXES = (
+    "_token", "_secret", "_password", "_credential", "_private_key",
+    "_api_key", "_access_key", "_signing_key",
+)
 SENSITIVE_TEXT = re.compile(
     r"(?:\bBearer\s+[A-Za-z0-9._~+/=-]{12,}|-----BEGIN [A-Z ]*PRIVATE KEY-----|"
     r"(?:api[_-]?key|password|secret|authorization)\s*[:=]\s*\S+|"
