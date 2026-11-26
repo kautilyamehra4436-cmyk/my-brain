@@ -51,13 +51,18 @@ class GovernedSelfBuildRuntimeV3:
     def b2b_adapter_available(self) -> bool:
         return self.b2b_adapter is not None
 
-    def stage_b2b_csv(self, content: bytes, *, owner_consented: bool = False) -> dict[str, Any]:
+    def stage_b2b_csv(
+        self, content: bytes, *, owner_consented: bool = False,
+        allow_unencrypted_storage: bool = False,
+    ) -> dict[str, Any]:
         """Owner-invoked staging; source bytes go to the separate financial vault."""
         if owner_consented is not True:
             raise PermissionError("explicit_owner_consent_required_to_stage_financial_csv")
+        if allow_unencrypted_storage is not True:
+            raise PermissionError("explicit_unencrypted_storage_acknowledgement_required")
         if self.b2b_adapter is None:
             raise RuntimeError("pinned_advait_b2b_submodule_unavailable")
-        return self.b2b_adapter.stage_csv(content)
+        return self.b2b_adapter.stage_csv(content, allow_unencrypted_storage=True)
 
     def enqueue_b2b_reconciliation(
         self, input_artifact_id: str, *, owner_confirmed: bool = False,
