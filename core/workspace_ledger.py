@@ -148,7 +148,7 @@ class WorkspaceLedger:
         record_id = str(uuid.uuid4())
         created_at = time.time()
         digest_input = _canonical({
-            "owner_role": role, "visibility": visibility, "kind": kind,
+            "owner_id": actor_id, "owner_role": role, "visibility": visibility, "kind": kind,
             "title": title, "body": body, **optional,
         })
         digest = hashlib.sha256(digest_input.encode("utf-8")).hexdigest()
