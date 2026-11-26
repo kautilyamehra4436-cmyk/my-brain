@@ -67,6 +67,15 @@ ENGINEERING_LESSONS = (
         "verification": "Review the tested source and ensure every exact-string assertion is actually present or explicitly required",
         "status": "ENFORCED_IN_AI_DEVELOPER_V2_TESTS",
     },
+    {
+        "id": "FOUNDATION-008",
+        "title": "Assert serialized storage using the persisted representation",
+        "trigger": "ATC migration test treated the task queue JSON payload string as an already decoded mapping",
+        "root_cause": "The queue contract persists canonical JSON text and list_tasks returns that stored text",
+        "mandatory_rule": "Decode serialized JSON explicitly in tests and consumers; do not assume storage adapters hydrate records",
+        "verification": "Round-trip persisted JSON through json.loads and assert the semantic fields",
+        "status": "ENFORCED_IN_RUNTIME_MIGRATION_V2_TESTS",
+    },
 )
 
 
