@@ -1,7 +1,7 @@
-import gc
+import subprocess
+import sys
 import tempfile
 import unittest
-import warnings
 from pathlib import Path
 
 from core.atc_worker_bridge_managed_v1 import ATCWorkerBridgeManagedV1
@@ -36,18 +36,25 @@ class ManagedRuntimeTests(unittest.TestCase):
             self.assertEqual(report["result"]["output"]["words"], 7)
 
     def test_queue_operations_do_not_emit_sqlite_resource_warnings(self):
-        with tempfile.TemporaryDirectory() as temp:
-            with warnings.catch_warnings(record=True) as caught:
-                warnings.simplefilter("always", ResourceWarning)
-                queue = ManagedTaskQueueV1(Path(temp) / "tasks.db")
-                queue.enqueue("sample", {})
-                queue.list_tasks()
-                queue.audit_events()
-                gc.collect()
-            self.assertFalse(
-                [w for w in caught if issubclass(w.category, ResourceWarning)],
-                "managed queue leaked a SQLite connection",
-            )
+        code = """
+import gc, warnings, tempfile
+from pathlib import Path
+from core.managed_task_queue_v1 import ManagedTaskQueueV1
+warnings.simplefilter("always", ResourceWarning)
+with tempfile.TemporaryDirectory() as temp:
+    queue = ManagedTaskQueueV1(Path(temp) / "tasks.db")
+    queue.enqueue("sample", {})
+    queue.list_tasks()
+    queue.audit_events()
+    del queue
+    gc.collect()
+"""
+        result = subprocess.run(
+            [sys.executable, "-c", code],
+            capture_output=True, text=True, timeout=10,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertNotIn("unclosed database", result.stderr.lower())
 
 
 if __name__ == "__main__":
