@@ -4,21 +4,21 @@
 
 ## Cost and authority
 
-The hard-zero policy in \`config.yml\` is controlling. Paid APIs, hosting, subscriptions, credit, loans, paid upgrades and auto-renewals remain disabled. Exhausted or unknown free quota means stop and report; there is no paid fallback. The owner retains final authority over money, legal commitments, credentials, external messages, sensitive data sharing and security/core changes.
+The hard-zero policy in `config.yml` is controlling. Paid APIs, hosting, subscriptions, credit, loans, paid upgrades and auto-renewals remain disabled. Exhausted or unknown free quota means stop and report; there is no paid fallback. The owner retains final authority over money, legal commitments, credentials, external messages, sensitive data sharing and security/core changes.
 
 ## Canonical runtime
 
-- \`core/atc_planner.py\`: ATC v1.2 deterministic planning and reflection. It is not an LLM and does not perform live web research.
-- \`core/atc_worker_bridge_managed_v3.py\`: canonical managed bridge from an ATC draft to explicitly selected local tool tasks.
-- \`core/governed_self_build_runtime_v3.py\`: canonical governed local runtime.
-- \`core/managed_task_queue_v3.py\`: durable SQLite queue with leases, expiry recovery and bounded attempts. Terminal completion/failure is fenced by active worker identity and unexpired lease.
-- \`core/worker.py\`: bounded host-allowlisted worker with zero-cost, risk and evidence gates. No default network, browser, shell, payment or external-action handlers.
-- \`core/governed_self_build_factory_v1.py\`: fixed local operations: \`text.word_count\`, \`text.sha256\`, \`json.canonicalize\`, \`csv.profile\`.
-- \`core/b2b_reconciliation_adapter_v1.py\`: CSV-only local reconciliation adapter that uses the pinned 100X submodule \`vendor/advait_b2b\`.
-- \`core/financial_record_vault_v1.py\`: separate file storage for financial CSV inputs and reports; source rows do not enter task-queue payloads/results.
-- \`core/managed_sqlite_v1.py\`: shared SQLite connection lifecycle foundation.
+- `core/atc_planner.py`: ATC v1.2 deterministic planning and reflection. It is not an LLM and does not perform live web research.
+- `core/atc_worker_bridge_managed_v3.py`: canonical managed bridge from an ATC draft to explicitly selected local tool tasks.
+- `core/governed_self_build_runtime_v3.py`: canonical governed local runtime.
+- `core/managed_task_queue_v3.py`: durable SQLite queue with leases, expiry recovery and bounded attempts. Terminal completion/failure is fenced by active worker identity and unexpired lease.
+- `core/worker.py`: bounded host-allowlisted worker with zero-cost, risk and evidence gates. No default network, browser, shell, payment or external-action handlers.
+- `core/governed_self_build_factory_v1.py`: fixed local operations: `text.word_count`, `text.sha256`, `json.canonicalize`, `csv.profile`.
+- `core/b2b_reconciliation_adapter_v1.py`: CSV-only local reconciliation adapter that uses the pinned 100X submodule `vendor/advait_b2b`.
+- `core/financial_record_vault_v1.py`: separate file storage for financial CSV inputs and reports; source rows do not enter task-queue payloads/results.
+- `core/managed_sqlite_v1.py`: shared SQLite connection lifecycle foundation.
 
-The canonical B2B source is pinned at submodule commit \`e6b52df9f7e9a2e8690217ace813e2e29b65b244\`; it is not copied into this repository. Clone with \`git clone --recurse-submodules\` or initialize using \`git submodule update --init\`.
+The canonical B2B source is pinned at submodule commit `e6b52df9f7e9a2e8690217ace813e2e29b65b244`; it is not copied into this repository. Clone with `git clone --recurse-submodules` or initialize using `git submodule update --init`.
 
 ## B2B CSV boundary
 
@@ -35,24 +35,24 @@ The adapter stages source bytes only after explicit local owner-consent and expl
 
 Create an ATC draft:
 
-\`\`\`sh
+```sh
 python -m core.atc_planner --ledger atc.db think "My goal" --constraint "phone-only" --constraint "zero cost"
 python -m core.atc_planner --ledger atc.db status
-\`\`\`
+```
 
 Run local ATC and B2B integration checks:
 
-\`\`\`sh
+```sh
 python scripts/advait_atc_worker_bridge_v1.py
 python scripts/advait_b2b_integration_smoke_v1.py
-\`\`\`
+```
 
 Run tests:
 
-\`\`\`sh
+```sh
 python -m unittest discover -v
 python -m compileall -q core tests scripts
-\`\`\`
+```
 
 ## Verified boundary — 2026-11-27
 
