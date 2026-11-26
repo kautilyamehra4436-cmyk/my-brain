@@ -19,12 +19,14 @@ def main():
     args = parser.parse_args()
     if not args.model.endswith(":free"):
         parser.error("model must end in :free; paid models are blocked")
-    ledger = ManagedProviderCallLedger(args.audit_db)
+    audit_db = Path(args.audit_db)
+    output = Path(args.output)
+    audit_db.parent.mkdir(parents=True, exist_ok=True)
+    output.parent.mkdir(parents=True, exist_ok=True)
+    ledger = ManagedProviderCallLedger(str(audit_db))
     router = ProviderRouterV1(ledger=ledger)
     agent = GovernedAIDeveloperV1(root=ROOT, router=router)
     report = agent.run(model=args.model)
-    output = Path(args.output)
-    output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text(json.dumps(report, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     print(json.dumps({
         "status": "completed_read_only",
