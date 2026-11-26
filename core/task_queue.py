@@ -2,6 +2,7 @@
 import hashlib
 import json
 import re
+import sqlite3
 import time
 import uuid
 
@@ -16,7 +17,7 @@ SENSITIVE_KEYS = {
     "authorization", "credential", "credentials", "access_token",
     "refresh_token", "private_key", "webhook_secret",
 }
-SENSITIVE_SUFFIXES = ("_token", "_secret", "_password", "_credential", "_private_key")
+SENSITIVE_SUFFIXES = ("_token", "_secret", "_password", "_credential", "_private_key", "_api_key")
 SENSITIVE_TEXT = re.compile(
     r"(?:\bBearer\s+[A-Za-z0-9._~+/=-]{12,}|-----BEGIN [A-Z ]*PRIVATE KEY-----|"
     r"(?:api[_-]?key|password|secret|authorization)\s*[:=]\s*\S+|"
@@ -253,24 +254,45 @@ class TaskQueue:
             raise PermissionError("invalid_lease_owner")
         now = time.time()
         safe_error = _safe_error_code(error)
+        scrub_payload = safe_error == "sensitive_task_payload_blocked"
         with self._connect() as con:
             if worker_id is None:
-                cur = con.execute(
-                    "UPDATE tasks SET status='failed',updated_at=?,error=? "
-                    "WHERE id=? AND status='running'",
-                    (now, safe_error, task_id),
+                if scrub_payload:
+                    cur = con.execute(
+                        "UPDATE tasks SET status='failed',updated_at=?,error=?,payload='{}' "
+                        "WHERE id=? AND status='running'",
+                        (now, safe_error, task_id),
+                    )
+                else:
+                    cur = con.execute(
+                        "UPDATE tasks SET status='failed',updated_at=?,error=? "
+                        "WHERE id=? AND status='running'",
+                        (now, safe_error, task_id),
                 )
             else:
-                cur = con.execute(
-                    "UPDATE tasks SET status='failed',updated_at=?,error=? "
-                    "WHERE id=? AND status='running' AND lease_owner=? AND lease_expires_at>?",
-                    (now, safe_error, task_id, worker_id, now),
-                )
+                if scrub_payload:
+                    cur = con.execute(
+                        "UPDATE tasks SET status='failed',updated_at=?,error=?,payload='{}' "
+                        "WHERE id=? AND status='running' AND lease_owner=? AND lease_expires_at>?",
+                        (now, safe_error, task_id, worker_id, now),
+                    )
+                else:
+                    cur = con.execute(
+                        "UPDATE tasks SET status='failed',updated_at=?,error=? "
+                        "WHERE id=? AND status='running' AND lease_owner=? AND lease_expires_at>?",
+                        (now, safe_error, task_id, worker_id, now),
+                    )
             if cur.rowcount != 1:
                 if worker_id is not None:
                     raise PermissionError("task_lease_lost_or_expired")
                 raise ValueError("Task not found or not running")
             self._audit(con, "fail", task_id, {"error": safe_error})
+        if scrub_payload:
+            try:
+                with self._connect() as con:
+                    con.execute("PRAGMA wal_checkpoint(TRUNCATE)")
+            except sqlite3.Error:
+                pass
 
     def audit_events(self):
         with self._connect() as con:
