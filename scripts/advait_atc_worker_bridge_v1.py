@@ -10,12 +10,12 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from core.atc_worker_bridge_v1 import ATCWorkerBridgeV1
+from core.atc_worker_bridge_managed_v3 import ATCWorkerBridgeManagedV3
 
 
 def main() -> int:
     with tempfile.TemporaryDirectory(prefix="advait-atc-bridge-") as temp:
-        bridge = ATCWorkerBridgeV1(temp)
+        bridge = ATCWorkerBridgeManagedV3(temp)
         plan = bridge.plan("Count words in a sample text using a local tool")
         task_id = bridge.enqueue_local_tool(
             plan,

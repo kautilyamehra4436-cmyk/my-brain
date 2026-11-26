@@ -8,6 +8,7 @@ must enforce its own data/path/network contract.
 from __future__ import annotations
 
 import json
+import uuid
 from typing import Any, Callable
 
 from core.zero_cost_guard import evaluate as zero_cost_evaluate
@@ -42,12 +43,23 @@ class BoundedWorker:
         evidence_verifier: Callable[[str, dict, dict], bool] | None,
         owner_approval_verifier: Callable[[str, str, dict, str], bool] | None = None,
         max_output_bytes: int = 65536,
+        worker_id: str | None = None,
+        lease_seconds: float = 300.0,
     ):
         if not isinstance(handlers, dict):
             raise TypeError("handlers must be an explicit allowlist mapping")
         if max_output_bytes < 1:
             raise ValueError("max_output_bytes must be positive")
+        if not isinstance(lease_seconds, (int, float)) or isinstance(lease_seconds, bool) or lease_seconds <= 0:
+            raise ValueError("lease_seconds must be positive")
         self.queue = queue
+        self.lease_aware = bool(getattr(queue, "requires_lease_owner", False))
+        if worker_id is None:
+            worker_id = uuid.uuid4().hex
+        if not isinstance(worker_id, str) or not worker_id.strip() or len(worker_id) > 128:
+            raise ValueError("invalid worker_id")
+        self.worker_id = worker_id
+        self.lease_seconds = float(lease_seconds)
         self.handlers = dict(handlers)
         self.evidence_verifier = evidence_verifier
         self.owner_approval_verifier = owner_approval_verifier
@@ -66,7 +78,13 @@ class BoundedWorker:
 
     def run_once(self) -> dict[str, Any]:
         """Run one eligible task; never executes plan-only queue records."""
-        task = self.queue.claim_next(eligible=self._eligible)
+        if self.lease_aware:
+            task = self.queue.claim_next(
+                eligible=self._eligible, worker_id=self.worker_id,
+                lease_seconds=self.lease_seconds,
+            )
+        else:
+            task = self.queue.claim_next(eligible=self._eligible)
         if task is None:
             return {"status": "idle", "reason": "no_bounded_adapter_task"}
 
@@ -123,14 +141,27 @@ class BoundedWorker:
             if not callable(self.evidence_verifier):
                 raise PermissionError("independent evidence verifier unavailable")
 
-            self.queue.complete(
-                task_id,
-                output["result"],
-                evidence=output["evidence"],
-                verifier=self.evidence_verifier,
-            )
+            completion = {
+                "evidence": output["evidence"],
+                "verifier": self.evidence_verifier,
+            }
+            if self.lease_aware:
+                completion["worker_id"] = self.worker_id
+            self.queue.complete(task_id, output["result"], **completion)
             return {"status": "done", "task_id": task_id, "verified": True}
         except Exception as exc:
             reason = f"{type(exc).__name__}: {exc}"
-            self.queue.fail(task_id, reason)
+            try:
+                if self.lease_aware:
+                    self.queue.fail(task_id, reason, worker_id=self.worker_id)
+                else:
+                    self.queue.fail(task_id, reason)
+            except Exception as lease_exc:
+                if self.lease_aware:
+                    return {
+                        "status": "lease_lost", "task_id": task_id,
+                        "reason": reason,
+                        "lease_error": f"{type(lease_exc).__name__}: {lease_exc}",
+                    }
+                raise
             return {"status": "failed", "task_id": task_id, "reason": reason}

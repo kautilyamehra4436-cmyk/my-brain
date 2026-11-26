@@ -4,6 +4,7 @@ import unittest
 from pathlib import Path
 from core.managed_task_queue_v3 import ManagedTaskQueueV3
 from core.managed_sqlite_v1 import managed_connection
+from core.worker import BoundedWorker
 
 class ManagedTaskQueueV3Tests(unittest.TestCase):
     def test_claim_adds_lease_and_attempt(self):
@@ -51,12 +52,61 @@ class ManagedTaskQueueV3Tests(unittest.TestCase):
             with self.assertRaises(ValueError): q.claim_next(worker_id="",lease_seconds=5)
             with self.assertRaises(ValueError): q.claim_next(worker_id="ok",lease_seconds=0)
 
+    def test_unfenced_terminal_updates_are_rejected(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            q=ManagedTaskQueueV3(Path(tmp)/"tasks.db")
+            tid=q.enqueue("fenced task",{})
+            q.claim_next(worker_id="worker-A")
+            with self.assertRaisesRegex(PermissionError,"lease_owner_required"):
+                q.complete(tid,{"ok":True},evidence={"proof":"unit"},verifier=lambda *_:True)
+            with self.assertRaisesRegex(PermissionError,"lease_owner_required"):
+                q.fail(tid,"unfenced")
+
+    def test_stale_worker_cannot_complete_or_fail_after_reclaim(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            db=Path(tmp)/"tasks.db"
+            q=ManagedTaskQueueV3(db,max_attempts=3)
+            tid=q.enqueue("fenced task",{})
+            q.claim_next(worker_id="worker-A",lease_seconds=30)
+            with managed_connection(db) as con:
+                con.execute("UPDATE tasks SET lease_expires_at=? WHERE id=?",(time.time()-1,tid))
+            q.claim_next(worker_id="worker-B",lease_seconds=30)
+            with self.assertRaisesRegex(PermissionError,"task_lease_lost_or_expired"):
+                q.complete(tid,{"ok":True},evidence={"proof":"unit"},verifier=lambda *_:True,worker_id="worker-A")
+            with self.assertRaisesRegex(PermissionError,"task_lease_lost_or_expired"):
+                q.fail(tid,"stale failure",worker_id="worker-A")
+            q.complete(tid,{"ok":True},evidence={"proof":"unit"},verifier=lambda *_:True,worker_id="worker-B")
+            self.assertEqual(q.list_tasks()[0]["status"],"done")
+
+    def test_bounded_worker_uses_lease_and_fenced_completion(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            q=ManagedTaskQueueV3(Path(tmp)/"tasks.db")
+            payload={
+                "execution_mode":"bounded_adapter","adapter":"fixture.echo",
+                "action":"local_analysis","estimated_cost":0,
+                "free_quota_available":True,"risk":"low","input":{"value":"ok"},
+            }
+            task_id=q.enqueue("worker lease fixture",payload)
+            worker=BoundedWorker(
+                q,
+                {"fixture.echo":lambda data:{"result":{"value":data["value"]},
+                    "evidence":{"expected":data["value"]}}},
+                evidence_verifier=lambda tid,result,evidence: (
+                    tid==task_id and result.get("value")==evidence.get("expected")
+                ),
+                worker_id="worker-A",
+            )
+            outcome=worker.run_once()
+            self.assertEqual(outcome["status"],"done")
+            self.assertEqual(q.list_tasks()[0]["status"],"done")
+            self.assertEqual(q.lease_status()["active_leases"],[])
+
     def test_terminal_transition_clears_lease(self):
         with tempfile.TemporaryDirectory() as tmp:
             q=ManagedTaskQueueV3(Path(tmp)/"tasks.db")
             tid=q.enqueue("finish",{})
             q.claim_next(worker_id="worker-A")
-            q.complete(tid,{"ok":True},evidence={"proof":"unit"},verifier=lambda *_:True)
+            q.complete(tid,{"ok":True},evidence={"proof":"unit"},verifier=lambda *_:True,worker_id="worker-A")
             self.assertEqual(q.list_tasks()[0]["status"],"done")
             self.assertEqual(q.lease_status()["active_leases"],[])
 
