@@ -41,17 +41,17 @@ class FoundationResourceGovernanceTests(unittest.TestCase):
                 captured.append(con)
                 return con
 
+            with real_connect(target) as setup:
+                setup.execute("CREATE TABLE sample (id INTEGER)")
             with patch("core.managed_sqlite_v1.sqlite3.connect", side_effect=tracking_connect):
                 with self.assertRaisesRegex(RuntimeError, "forced"):
                     with managed_connection(target) as con:
-                        con.execute("CREATE TABLE sample (id INTEGER)")
+                        con.execute("INSERT INTO sample(id) VALUES(1)")
                         raise RuntimeError("forced")
             with self.assertRaises(sqlite3.ProgrammingError):
                 captured[0].execute("SELECT 1")
             with real_connect(target) as verify:
-                self.assertEqual(verify.execute(
-                    "SELECT name FROM sqlite_master WHERE type='table' AND name='sample'"
-                ).fetchone(), None)
+                self.assertEqual(verify.execute("SELECT id FROM sample").fetchall(), [])
 
     def test_managed_task_queue_creates_missing_parent(self):
         with tempfile.TemporaryDirectory() as tmp:
