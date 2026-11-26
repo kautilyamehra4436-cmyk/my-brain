@@ -32,7 +32,7 @@ class B2BAdapterVaultTests(unittest.TestCase):
     def test_stage_and_read_use_private_separate_vault(self):
         with tempfile.TemporaryDirectory() as tmp:
             vault = FinancialRecordVaultV1(Path(tmp) / "financial_vault_v1")
-            staged = vault.stage_csv(SOURCE)
+            staged = vault.stage_csv(SOURCE, allow_unencrypted_storage=True)
             source_path = vault.input_dir / f"{staged['artifact_id']}.csv"
             self.assertEqual(vault.read_input(staged["artifact_id"]), SOURCE)
             self.assertEqual(stat.S_IMODE(source_path.stat().st_mode), 0o600)
@@ -43,7 +43,7 @@ class B2BAdapterVaultTests(unittest.TestCase):
             adapter = B2BReconciliationAdapterV1(
                 Path(tmp) / "financial_vault_v1", reconciler=fake_reconciler
             )
-            staged = adapter.stage_csv(SOURCE)
+            staged = adapter.stage_csv(SOURCE, allow_unencrypted_storage=True)
             output = adapter.handle({"input_artifact_id": staged["artifact_id"]})
             result, evidence = output["result"], output["evidence"]
             self.assertNotIn("PRIVATE_VENDOR", json.dumps(result))
@@ -58,7 +58,7 @@ class B2BAdapterVaultTests(unittest.TestCase):
             adapter = B2BReconciliationAdapterV1(
                 Path(tmp) / "financial_vault_v1", reconciler=fake_reconciler
             )
-            staged = adapter.stage_csv(SOURCE)
+            staged = adapter.stage_csv(SOURCE, allow_unencrypted_storage=True)
             first = adapter.handle({"input_artifact_id": staged["artifact_id"]})
             second = adapter.handle({"input_artifact_id": staged["artifact_id"]})
             self.assertEqual(first, second)
@@ -68,7 +68,7 @@ class B2BAdapterVaultTests(unittest.TestCase):
             adapter = B2BReconciliationAdapterV1(
                 Path(tmp) / "financial_vault_v1", reconciler=fake_reconciler
             )
-            staged = adapter.stage_csv(SOURCE)
+            staged = adapter.stage_csv(SOURCE, allow_unencrypted_storage=True)
             output = adapter.handle({"input_artifact_id": staged["artifact_id"]})
             result, evidence = output["result"], output["evidence"]
             target = adapter.vault.output_dir / result["artifact_set_id"] / "normalized.csv"
