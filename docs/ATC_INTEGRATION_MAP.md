@@ -1,5 +1,5 @@
 # Advait Engine Integration Map — ATC v1.2
-Date: 2026-11-27 | Status: planner + managed local execution bridge implemented; external integrations remain pending.
+Date: 2026-11-27 | Status: planner, governed local worker and pinned B2B CSV adapter integrated; external actions remain pending.
 ## Placement
 ATC is the **Thinking/Planning Core** inside `my-brain`; it does not replace the task queue, zero-cost guard, bounded executor, business worker, or governance.
 | Component | Canonical location | Responsibility | Relationship |
@@ -27,7 +27,7 @@ ATC is the **Thinking/Planning Core** inside `my-brain`; it does not replace the
 5. The managed V3 bridge routes only that selected task to the governed runtime; the worker checks allowlist, cost/quota, risk and evidence.
 6. ManagedTaskQueueV3 fences terminal completion/failure by the active worker identity and unexpired lease. Lease heartbeat and multi-process stress remain pending.
 7. B2B CSV staging requires explicit local consent and an explicit acknowledgement that the financial artifact store is unencrypted. The queue stores only an opaque artifact ID; no real customer data is authorized until encryption and authenticated owner identity exist.
-7. This path performs no external customer action. Any future network, file-sharing, outreach, payment or contract adapter needs a separate reviewed contract, owner permission and independent evidence.
+8. This path performs no external customer action. Any future network, file-sharing, outreach, payment or contract adapter needs a separate reviewed contract, owner permission and independent evidence.
 ## Security findings to preserve
 - Advait OS Gate v0.2 removed the hardcoded placeholder token, rejects sandbox/target symlinks, uses exclusive no-overwrite writes, and confines tests to TemporaryDirectory. Its 15 regression tests and Python compile check passed in GitHub Actions. No authenticated owner provider is deployed, so HIGH/CRITICAL actions remain denied by default.
 - Advait 100x no longer treats a locally computable approval token as owner authentication. HIGH-risk tasks require an injected authenticated exact-task verifier; the offline repository ships no such provider, so they fail closed.
