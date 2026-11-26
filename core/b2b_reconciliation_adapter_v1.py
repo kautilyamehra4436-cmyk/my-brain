@@ -63,7 +63,11 @@ class B2BReconciliationAdapterV1:
         }
         if not isinstance(report, dict) or not required.issubset(report):
             raise ValueError("b2b_reconciler_report_contract_invalid")
-        if not isinstance(report["rows_checked"], int) or not isinstance(report["flags"], int):
+        if (
+            not isinstance(report["rows_checked"], int) or isinstance(report["rows_checked"], bool)
+            or not isinstance(report["flags"], int) or isinstance(report["flags"], bool)
+            or report["rows_checked"] < 0 or report["flags"] < 0
+        ):
             raise ValueError("b2b_reconciler_counts_invalid")
         if not isinstance(report["severity_counts"], dict) or not isinstance(report["rule_counts"], dict):
             raise ValueError("b2b_reconciler_breakdown_invalid")
