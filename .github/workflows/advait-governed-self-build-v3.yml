@@ -1,0 +1,43 @@
+name: Advait Governed Self-Build Worker v3
+on:
+  workflow_dispatch:
+    inputs:
+      max_tasks:
+        description: "Maximum bounded local tasks (1-5)"
+        required: true
+        type: number
+        default: 1
+permissions:
+  contents: read
+concurrency:
+  group: advait-governed-self-build-v3
+  cancel-in-progress: false
+jobs:
+  governed-self-build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Run complete test suite
+        run: python -m unittest discover -v
+      - name: Compile
+        run: python -m compileall -q core tests scripts
+      - name: Run bounded governed self-build
+        env:
+          MAX_TASKS: ${{ inputs.max_tasks }}
+        run: |
+          if ! [[ "$MAX_TASKS" =~ ^[1-5]$ ]]; then exit 2; fi
+          python scripts/advait_governed_self_build_v3.py \
+            --db-dir "$RUNNER_TEMP/advait-governed-v3" \
+            --enqueue-sample --max-tasks "$MAX_TASKS"
+      - name: Upload metadata-only records
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: advait-governed-self-build-v3-records
+          path: ${{ runner.temp }}/advait-governed-v3/*.db
+          if-no-files-found: ignore
+          retention-days: 7
