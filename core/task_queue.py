@@ -12,6 +12,8 @@ def _canonical(value):
 
 
 class TaskQueue:
+    requires_lease_owner = False
+
     def __init__(self, db_path="brain_tasks.db"):
         self.db_path = str(db_path)
         self._init()
@@ -122,12 +124,18 @@ class TaskQueue:
                 "payload": payload, "status": "running",
             }
 
-    def complete(self, task_id, result=None, *, evidence=None, verifier=None):
+    def complete(self, task_id, result=None, *, evidence=None, verifier=None, worker_id=None):
         """Mark a task done only after an injected independent verifier accepts evidence.
 
         The verifier receives (task_id, result, evidence). Raw evidence is not
         persisted; only its SHA-256 digest is stored for audit correlation.
         """
+        if self.requires_lease_owner and worker_id is None:
+            raise PermissionError("lease_owner_required_for_completion")
+        if worker_id is not None and (
+            not isinstance(worker_id, str) or not worker_id.strip() or len(worker_id) > 128
+        ):
+            raise PermissionError("invalid_lease_owner")
         if not callable(verifier):
             raise PermissionError("independent evidence verifier unavailable; fail-closed")
         if evidence is None:
@@ -145,12 +153,21 @@ class TaskQueue:
         now = time.time()
         with self._connect() as con:
             con.execute("BEGIN IMMEDIATE")
-            cur = con.execute(
-                "UPDATE tasks SET status='done',updated_at=?,result=?,error=NULL,evidence_sha256=? "
-                "WHERE id=? AND status='running'",
-                (now, result_json, evidence_digest, task_id),
-            )
+            if worker_id is None:
+                cur = con.execute(
+                    "UPDATE tasks SET status='done',updated_at=?,result=?,error=NULL,evidence_sha256=? "
+                    "WHERE id=? AND status='running'",
+                    (now, result_json, evidence_digest, task_id),
+                )
+            else:
+                cur = con.execute(
+                    "UPDATE tasks SET status='done',updated_at=?,result=?,error=NULL,evidence_sha256=? "
+                    "WHERE id=? AND status='running' AND lease_owner=? AND lease_expires_at>?",
+                    (now, result_json, evidence_digest, task_id, worker_id, now),
+                )
             if cur.rowcount != 1:
+                if worker_id is not None:
+                    raise PermissionError("task_lease_lost_or_expired")
                 raise ValueError("Task not found or not running")
             self._audit(
                 con, "complete_verified", task_id,
@@ -158,15 +175,30 @@ class TaskQueue:
                  "verification": "accepted"},
             )
 
-    def fail(self, task_id, error):
+    def fail(self, task_id, error, *, worker_id=None):
+        if self.requires_lease_owner and worker_id is None:
+            raise PermissionError("lease_owner_required_for_failure")
+        if worker_id is not None and (
+            not isinstance(worker_id, str) or not worker_id.strip() or len(worker_id) > 128
+        ):
+            raise PermissionError("invalid_lease_owner")
         now = time.time()
         with self._connect() as con:
-            cur = con.execute(
-                "UPDATE tasks SET status='failed',updated_at=?,error=? "
-                "WHERE id=? AND status='running'",
-                (now, str(error), task_id),
-            )
+            if worker_id is None:
+                cur = con.execute(
+                    "UPDATE tasks SET status='failed',updated_at=?,error=? "
+                    "WHERE id=? AND status='running'",
+                    (now, str(error), task_id),
+                )
+            else:
+                cur = con.execute(
+                    "UPDATE tasks SET status='failed',updated_at=?,error=? "
+                    "WHERE id=? AND status='running' AND lease_owner=? AND lease_expires_at>?",
+                    (now, str(error), task_id, worker_id, now),
+                )
             if cur.rowcount != 1:
+                if worker_id is not None:
+                    raise PermissionError("task_lease_lost_or_expired")
                 raise ValueError("Task not found or not running")
             self._audit(con, "fail", task_id, {"error": str(error)})
 
