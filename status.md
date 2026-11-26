@@ -1,7 +1,7 @@
 # My Brain — Verified Status Checkpoint
 
 **Updated:** 2026-11-27  
-**Main commit:** \`497b41780ad2634ca6498460e96fe3eb739c83d6\`  
+**Main commit:** `497b41780ad2634ca6498460e96fe3eb739c83d6`  
 **Evidence:** PR #37 merged; B2B integration CI [45908960326](https://github.com/kautilyamehra4436-cmyk/my-brain/actions/runs/45908960326) passed.
 
 ## Status by capability
@@ -37,7 +37,7 @@
 1. Owner invokes local staging with explicit consent and acknowledges that the vault is unencrypted.
 2. Source CSV is written to a separate permission-restricted file store.
 3. The task queue receives only an opaque input artifact ID, not CSV rows.
-4. The pinned 100X \`reconcile_text\` API performs bounded deterministic analysis.
+4. The pinned 100X `reconcile_text` API performs bounded deterministic analysis.
 5. Normalized CSV, exceptions CSV and summary are stored separately from operational SQLite.
 6. The verifier recomputes the report and checks artifact bytes/hashes before queue completion.
 
@@ -56,7 +56,7 @@ The CI sample processed 5 rows and generated 7 review flags. This verifies integ
 1. Implement encrypted financial artifact storage (Android Keystore or an audited at-rest encryption design) and authenticated owner identity before any real customer CSV is staged.
 2. Integrate Advait OS Gate through a reviewed versioned contract; keep HIGH/CRITICAL blocked until identity and fail-closed tests exist.
 3. Add lease heartbeat/renewal or enforce strict maximum handler duration, then run multi-process queue stress and crash-recovery tests.
-4. Perform one manual OpenRouter explicit \`:free\` provider smoke only after secret presence is confirmed by workflow behavior; never reveal/request the key or allow paid fallback.
+4. Perform one manual OpenRouter explicit `:free` provider smoke only after secret presence is confirmed by workflow behavior; never reveal/request the key or allow paid fallback.
 5. Run Android/Termux checks on the target phone, then controlled soak. Do not claim 24-hour operation until a persistent scheduler/host and recovery are proven.
 
 **Not a completed milestone:** customer acquisition, bounty submission, payment collection, ₹10,000/day revenue, 24/7 operation and self-directed model retraining remain unimplemented or unverified.
