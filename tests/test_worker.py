@@ -91,23 +91,16 @@ class BoundedWorkerTests(unittest.TestCase):
         self.assertEqual(self.queue.list_tasks(status="failed")[0]["id"], task_id)
 
     def test_high_risk_requires_exact_owner_approval(self):
-        task_id = self.enqueue(risk="high")
+        task_id = self.enqueue(risk="high", approval_token="fixture-approval")
         owner_calls = []
         worker = self.worker(owner_approval_verifier=lambda tid, action, payload, token: (
-            owner_calls.append((tid, action, token)) or tid == task_id and action == "local_analysis" and token == "fixture-approval"
+            owner_calls.append((tid, action, token))
+            or (tid == task_id and action == "local_analysis" and token == "fixture-approval")
         ))
-        # Add the opaque approval token only to this synthetic test task.
-        running_payload = self.queue.list_tasks(status="pending")[0]["payload"]
-        import json
-        decoded = json.loads(running_payload)
-        decoded["approval_token"] = "fixture-approval"
-        # Queue payloads are immutable through the public API; use a new task with token.
-        self.queue.fail if False else None
-        # The test's owner verifier must not be bypassed; the worker rejects missing token.
         outcome = worker.run_once()
-        self.assertEqual(outcome["status"], "failed")
-        self.assertTrue(owner_calls)
-        self.assertEqual(self.queue.list_tasks(status="failed")[0]["id"], task_id)
+        self.assertEqual(outcome["status"], "done")
+        self.assertEqual(owner_calls, [(task_id, "local_analysis", "fixture-approval")])
+        self.assertEqual(self.queue.list_tasks(status="done")[0]["id"], task_id)
 
     def test_missing_independent_verifier_fails_closed(self):
         task_id = self.enqueue()
