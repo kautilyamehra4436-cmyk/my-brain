@@ -4,6 +4,7 @@ import unittest
 from pathlib import Path
 from core.managed_task_queue_v3 import ManagedTaskQueueV3
 from core.managed_sqlite_v1 import managed_connection
+from core.worker import BoundedWorker
 
 class ManagedTaskQueueV3Tests(unittest.TestCase):
     def test_claim_adds_lease_and_attempt(self):
@@ -76,6 +77,29 @@ class ManagedTaskQueueV3Tests(unittest.TestCase):
                 q.fail(tid,"stale failure",worker_id="worker-A")
             q.complete(tid,{"ok":True},evidence={"proof":"unit"},verifier=lambda *_:True,worker_id="worker-B")
             self.assertEqual(q.list_tasks()[0]["status"],"done")
+
+    def test_bounded_worker_uses_lease_and_fenced_completion(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            q=ManagedTaskQueueV3(Path(tmp)/"tasks.db")
+            payload={
+                "execution_mode":"bounded_adapter","adapter":"fixture.echo",
+                "action":"local_analysis","estimated_cost":0,
+                "free_quota_available":True,"risk":"low","input":{"value":"ok"},
+            }
+            task_id=q.enqueue("worker lease fixture",payload)
+            worker=BoundedWorker(
+                q,
+                {"fixture.echo":lambda data:{"result":{"value":data["value"]},
+                    "evidence":{"expected":data["value"]}}},
+                evidence_verifier=lambda tid,result,evidence: (
+                    tid==task_id and result.get("value")==evidence.get("expected")
+                ),
+                worker_id="worker-A",
+            )
+            outcome=worker.run_once()
+            self.assertEqual(outcome["status"],"done")
+            self.assertEqual(q.list_tasks()[0]["status"],"done")
+            self.assertEqual(q.lease_status()["active_leases"],[])
 
     def test_terminal_transition_clears_lease(self):
         with tempfile.TemporaryDirectory() as tmp:
