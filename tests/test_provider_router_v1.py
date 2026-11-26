@@ -109,7 +109,6 @@ class ProviderRouterTests(unittest.TestCase):
             )
         self.assertEqual(self.ledger.events()[0]["status"], "cost_unverified")
 
-    @patch("core.provider_router_v1.urllib.request.urlopen", return_value=FakeResponse())
     @patch("core.provider_router_v1.urllib.request.urlopen", return_value=FakeResponseRedirect())
     def test_cross_host_redirect_is_blocked(self, mock):
         with self.assertRaisesRegex(ProviderRequestError, "redirect_or_status"):
@@ -119,6 +118,7 @@ class ProviderRouterTests(unittest.TestCase):
             )
         self.assertEqual(self.ledger.events()[0]["status"], "error")
 
+    @patch("core.provider_router_v1.urllib.request.urlopen", return_value=FakeResponse())
     def test_oversized_response_is_logged_and_rejected(self, mock):
         router = ProviderRouterV1(
             ledger=self.ledger, policy={"max_response_bytes": 16},
