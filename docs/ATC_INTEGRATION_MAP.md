@@ -1,5 +1,5 @@
 # Advait Engine Integration Map — ATC v1.2
-Date: 2026-11-24 | Status: repository review and integration proposal; this branch contains the first bounded planner implementation.
+Date: 2026-11-27 | Status: planner + managed local execution bridge implemented; external integrations remain pending.
 ## Placement
 ATC is the **Thinking/Planning Core** inside `my-brain`; it does not replace the task queue, zero-cost guard, bounded executor, business worker, or governance.
 | Component | Canonical location | Responsibility | Relationship |
@@ -10,8 +10,8 @@ ATC is the **Thinking/Planning Core** inside `my-brain`; it does not replace the
 | Living Fabric / AELI | `advait_pure_sharp/ADVAIT_LIVING_FABRIC_ARCHITECTURE.md` | Routing, activation and cross-module coordination blueprint | System-level coordinator proposal |
 | ATC Thinking Core | `my-brain/core/atc_planner.py` | Goal capture, heuristic strategy comparison, risk flags, plan draft, reflection questions | Planner; no execution |
 | Zero-cost guard | `my-brain/core/zero_cost_guard.py` | Fail-closed cost/quota/sensitive-action helper | ATC planning gate; should be wired across future actions |
-| Task queue | `my-brain/core/task_queue.py` | SQLite queue and audit events | Stores ATC plan steps; does not execute payloads |
-| Bounded execution core | `advait-100x-research-audit/advait_engine.py` | Allowlist, budgets, approval binding, evidence/reconciliation | Separate execution reference; no live adapters |
+| Task queue | `my-brain/core/managed_task_queue_v3.py` over `core/task_queue.py` | Durable SQLite queue, leases, expiry recovery and bounded attempts | Canonical governed runtime uses V3; completion/failure is fenced by worker identity and lease expiry |
+| Bounded worker | `my-brain/core/worker.py` | Host-allowlisted local handlers, zero-cost/risk/evidence gates | Manually invoked; no network, shell, browser, payment or external adapters by default |\n| Governed runtime | `my-brain/core/governed_self_build_runtime_v3.py` | Fixed local tool operations and bounded execution | Uses ManagedTaskQueueV3; no daemon/scheduler/external I/O |\n| Managed ATC bridge | `my-brain/core/atc_worker_bridge_managed_v3.py` | Explicitly selected ATC draft → local governed task | CI smoke verified; not an external business executor |\n| Bounded execution reference | `advait-100x-research-audit/advait_engine.py` | Allowlist, budgets, approval binding, evidence/reconciliation | Separate reference implementation; no production adapters |
 | Owner Approval Gate | advait_os/advait_gate_v01.py | Hardened local file gate with fail-closed verifier hook | v0.2 merged to main; HIGH/CRITICAL remain blocked without a real authenticated provider |
 | PanchTatva C10 | `advait_pure_sharp/advait_panch_tatva_c10.py` | Rule-based 10-scenario simulation harness | Regression/scenario test suite, not intelligence proof |
 | B2B reconciliation worker | `advait-100x-research-audit/b2b_reconcile.py` | CSV exception detection, normalized output, summary | Specialized task worker; source CSV is not overwritten |
@@ -35,3 +35,11 @@ ATC is the **Thinking/Planning Core** inside `my-brain`; it does not replace the
 - `status.md` health 0/100 is explicitly uncomputed; Android and 24-hour operation are untested.
 ## Review coverage boundary
 Read-back covered the files linked/referenced by repository README/status and the key governing docs, code, tests, workflows and reports across the four accessible repositories. GitHub connector has no directory-tree listing in the currently exposed tools, and code search returned no indexed results, so this is **not a verified exhaustive inventory of every repository file**. Unlinked/unknown files may remain.
+
+## Verified checkpoint — 2026-11-27
+
+- My Brain PR #35 merged and CI run [45906541842](https://github.com/kautilyamehra4436-cmyk/my-brain/actions/runs/45906541842) passed.
+- The canonical governed runtime now uses ManagedTaskQueueV3; the active ATC smoke script exercises ATCWorkerBridgeManagedV3.
+- Stale-worker completion/failure is rejected by lease-owner and expiry checks.
+- No LLM runtime, live research, external adapters, Android run, scheduler or 24-hour operation is verified.
+- Four-repository path inventory: 206 files / 226 tree entries; see the canonical snapshot in the 100X repository.
