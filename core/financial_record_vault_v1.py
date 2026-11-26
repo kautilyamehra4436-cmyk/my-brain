@@ -149,12 +149,21 @@ class FinancialRecordVaultV1:
             if existing != encoded:
                 raise FinancialVaultError("existing_output_artifact_conflict")
         else:
-            os.mkdir(directory, 0o700)
-            directory_real = directory.resolve(strict=True)
-            for key, filename in _OUTPUT_NAMES.items():
-                self._write_exclusive(
-                    directory / filename, encoded[key], directory, directory_real
-                )
+            created = False
+            try:
+                os.mkdir(directory, 0o700)
+                created = True
+            except FileExistsError:
+                # Another worker may have completed the same deterministic output set.
+                self._assert_child(self.output_dir, directory, self._output_real)
+                if self.read_outputs(artifact_set_id) != encoded:
+                    raise FinancialVaultError("concurrent_output_artifact_conflict")
+            if created:
+                directory_real = directory.resolve(strict=True)
+                for key, filename in _OUTPUT_NAMES.items():
+                    self._write_exclusive(
+                        directory / filename, encoded[key], directory, directory_real
+                    )
         return {
             "artifact_set_id": artifact_set_id,
             "sha256": {
