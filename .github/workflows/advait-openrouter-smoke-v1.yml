@@ -1,0 +1,41 @@
+name: Advait OpenRouter Free Smoke Test
+
+on:
+  workflow_dispatch:
+    inputs:
+      model:
+        description: "OpenRouter model ID ending in :free"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: advait-openrouter-smoke
+  cancel-in-progress: false
+
+jobs:
+  smoke-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Validate model and run one bounded request
+        env:
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          MODEL_ID: ${{ inputs.model }}
+        run: |
+          python - <<'PY'
+          import os, re, sys
+          model = os.environ.get("MODEL_ID", "")
+          if not re.fullmatch(r"[A-Za-z0-9._/-]{1,180}:free", model):
+              print("Blocked: model ID must end in :free.")
+              sys.exit(2)
+          PY
+          python scripts/openrouter_smoke_v1.py --model "$MODEL_ID"
