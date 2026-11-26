@@ -2,7 +2,7 @@ import json, sqlite3, tempfile, unittest
 from contextlib import closing
 from pathlib import Path
 from unittest.mock import patch
-from core.provider_router_v1 import ProviderCallLedger, ProviderPolicyError, ProviderRouterV1
+from core.provider_router_v1 import ProviderCallLedger, ProviderPolicyError, ProviderRequestError, ProviderRouterV1
 
 class FakeResponse:
     status=200
@@ -96,6 +96,19 @@ class ProviderRouterTests(unittest.TestCase):
                 messages=[{"role": "user", "content": "hi"}],
             )
         self.assertEqual(self.ledger.events()[0]["status"], "cost_unverified")
+
+    @patch("core.provider_router_v1.urllib.request.urlopen", return_value=FakeResponse())
+    def test_oversized_response_is_logged_and_rejected(self, mock):
+        router = ProviderRouterV1(
+            ledger=self.ledger, policy={"max_response_bytes": 16},
+            environ={"OPENROUTER_API_KEY": "secret-fixture"},
+        )
+        with self.assertRaisesRegex(ProviderRequestError, "response_too_large"):
+            router.call(
+                provider="openrouter", model="vendor/model:free",
+                messages=[{"role": "user", "content": "hi"}],
+            )
+        self.assertEqual(self.ledger.events()[0]["status"], "error")
 
     def test_oversized_request_rejected_before_network(self):
         with self.assertRaisesRegex(ValueError, "request_too_large"):
