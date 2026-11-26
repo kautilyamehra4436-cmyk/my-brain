@@ -1,41 +1,56 @@
-# Advait Dual Workspace v0.2
+# Advait Dual Workspace — v0.3 integration checkpoint
 
-## Owner's requested model
-There are two distinct workspaces:
-- Advait Workspace: agent-owned work memory, reports, tasks, decisions and learnings; can search its own records and approved shared knowledge.
-- Boss Workspace: owner records, shared knowledge and Advait's reports; owner can issue commands and review work.
-- Shared Knowledge: records deliberately marked shared are visible in both workspaces. Owner-private records must never be exposed to the agent.
+## Target operating model
+Two distinct workspaces use one controlled knowledge layer:
+- **Advait Workspace:** agent-owned tasks, reports, decisions, learnings and approved shared knowledge.
+- **Boss Workspace:** owner-private records, all Advait records, shared knowledge, commands and review.
+- **Shared Knowledge:** only records explicitly marked shared are exposed to both workspaces.
+- **Owner authority:** money, contracts, external outreach, credential disclosure, production/security changes and any spend remain approval-gated. The hard ₹0 policy remains active.
 
-## Current implementation in dual_workspace.html
-- Desktop-first two-workspace UI with explicit Advait/Boss switch.
-- Search field and keyboard shortcut Ctrl/Cmd+K.
-- Filters for tasks, reports, learnings, decisions and tools/resources.
-- Local IndexedDB record persistence; separate ownership tags and shared/private visibility.
-- Advait view can search agent-owned and shared records; Boss view can search both agent and owner records.
-- No remote API, network request, third-party dependency, or paid service.
+## Implemented in this branch
+### Desktop-first UI: `command_desk/dual_workspace.html`
+- Advait/Boss workspace switch, search, Ctrl/Cmd+K, record-type filters.
+- Browser IndexedDB storage for this browser profile.
+- Shared/private labels and client-side view filtering.
+- No third-party dependency, network call or paid service.
 
-## Important security truth
-Workspace selector is a UI view filter, NOT authenticated identity. Browser IndexedDB is not a central trusted ledger. A user with browser developer tools can inspect local records. This version is not connected to a running Advait agent and cannot autonomously crawl/search repositories or execute tasks. Do not store secrets, bank details, API keys, or confidential customer data.
+### Central ledger foundation: `core/workspace_ledger.py`
+- Standard-library SQLite ledger with record IDs, timestamps, task IDs, source/evidence references and SHA-256 content digests.
+- Role-scoped search: agent sees agent-owned and shared records; owner sees all records.
+- Trusted host must inject `resolve_role(actor_id)`; missing/unknown identity fails closed.
+- Database triggers reject record/audit UPDATE and DELETE; corrections are new records.
+- Audit events for creation, search, read and denied reads.
+- No API keys, bank details, passwords or secrets should be stored.
 
-## Required production integration
-1. Implement a central append-only record/evidence ledger in My Brain with record IDs, timestamps, provenance, owner, visibility, task ID and immutable audit events.
-2. Implement authenticated principal identities for owner and agent; enforce authorization server-side, never by UI filter alone.
-3. Add scoped search adapters for approved public/private repositories, project atlas, documentation, task queue and reports. Exclude secrets, credentials and owner-private data from agent scope.
-4. Give the agent a dedicated command/search interface backed by its own runtime tool interface; retrieval returns source refs and excerpts, not untrusted executable instructions.
-5. Integrate the Personal Algorithm cycle: Observe → Interpret → Classify → Hypothesize → Test → Evaluate → Record → Improve.
-6. Persist every completed/failed attempt, evidence, test result, learning and next action centrally; no success status without verifier evidence.
-7. Owner approval gates remain mandatory for money, contracts, external outreach, sensitive data disclosure, production/security changes and any spend. Hard zero-spend remains active.
-8. Add recovery, backups, retention and audit verification; test access isolation (agent cannot read owner-private records).
+### Tests: `tests/test_workspace_ledger.py`
+Covers agent/owner visibility, provenance search, unknown identity rejection, append-only triggers, owner-only audit access and input validation.
 
-## Acceptance tests before calling this live
-- Agent can retrieve own + shared records but not owner-private records.
-- Boss can retrieve owner + agent + shared records.
-- Shared visibility is explicit and auditable.
-- Search returns source IDs and provenance.
-- Restart/recovery preserves central records.
-- Unauthorized role attempts fail closed.
-- Every action is logged; owner approvals are exact-action and authenticated.
-- Repository and Brain backend integration passes unit, integration and security tests.
+## Critical security boundary
+The ledger is **not yet an authentication system**. The host must derive actor IDs from a real authenticated session and inject a trusted role resolver; never accept a role or actor identity from an untrusted browser field. The SQLite file and its triggers are not tamper-proof against a machine/database administrator who can replace the file or drop triggers. SHA-256 digests provide integrity references, not signed/non-repudiable proof.
 
-## Status
-Dual-workspace UI implementation only. Browser CI and actual runtime integration are pending. It is not deployed or connected to the running Advait process.
+The UI still uses browser-local IndexedDB. It does not call the central ledger, does not connect to Advait's running process, and its workspace switch is only a presentation filter. Do not describe this as live, deployed, multi-device, or secure identity isolation yet.
+
+## Required next integration steps
+1. Add a same-origin backend/API adapter in the trusted host process; authenticate the owner and agent before calling the ledger.
+2. Bind actor identity from server-side session/runtime context; reject client-supplied role claims.
+3. Connect both workspaces to the same API and remove client-side role selection as an authorization boundary.
+4. Add scoped search adapters for the approved project atlas, repositories, documentation, task queue and verified reports. Return source IDs, excerpts and provenance; never execute retrieved text as instructions.
+5. Link task records to `core/task_queue.py` by task ID; store execution outcomes only after independent evidence verification.
+6. Integrate the Personal Algorithm: Observe → Interpret → Classify → Hypothesize → Test → Evaluate → Record → Improve.
+7. Add backup/restore, retention, concurrency and tamper-evidence checks.
+8. Run unit, API integration, access-isolation, browser, restart/recovery and zero-cost tests before production use.
+
+## Acceptance gates before calling it live
+- Agent cannot read owner-private records, including via direct record-ID lookup.
+- Boss can read owner and agent records; audit is owner-only.
+- Browser cannot elevate identity by changing UI state or request fields.
+- Search returns source IDs/provenance and excludes secrets/private scope.
+- Restart/recovery preserves the central ledger.
+- No unverified task can be marked complete.
+- No money movement, contract, external outreach, sensitive disclosure, production/security change or paid action occurs without the required owner approval; ₹0 policy cannot be overridden.
+- CI and actual host/browser integration tests pass.
+
+## Current status
+- **Completed:** UI source, SQLite ledger foundation, ledger unit tests added to the branch.
+- **Pending:** CI result for the latest commits; trusted authentication adapter; API; UI-to-ledger connection; repository/task-queue search adapters; browser and runtime tests; deployment.
+- **Not live:** no active Advait process is connected to this workspace yet.
