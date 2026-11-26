@@ -22,7 +22,9 @@ def main() -> int:
         bridge = ATCWorkerBridgeManagedV3(tmp)
         if not bridge.runtime.b2b_adapter_available:
             raise RuntimeError("pinned_b2b_adapter_unavailable")
-        staged = bridge.stage_b2b_csv(sample.read_bytes(), owner_consented=True)
+        staged = bridge.stage_b2b_csv(
+            sample.read_bytes(), owner_consented=True, allow_unencrypted_storage=True
+        )
         task_id = bridge.enqueue_b2b_reconciliation(
             staged["artifact_id"], owner_confirmed=True
         )
