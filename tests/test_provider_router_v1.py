@@ -8,6 +8,7 @@ class FakeResponse:
     status=200
     def __enter__(self): return self
     def __exit__(self,*args): return False
+    def geturl(self): return "https://openrouter.ai/api/v1/chat/completions"
     def read(self,size=-1):
         return json.dumps({"choices":[{"message":{"content":"fixture answer"}}],
                            "usage":{"prompt_tokens":4,"completion_tokens":2,"cost":0.0}}).encode()
@@ -17,6 +18,11 @@ class FakeResponseCost(FakeResponse):
     def read(self, size=-1):
         return json.dumps({"choices":[{"message":{"content":"fixture answer"}}],
                            "usage":{"prompt_tokens":4,"completion_tokens":2,"cost":0.01}}).encode()
+
+
+class FakeResponseRedirect(FakeResponse):
+    def geturl(self):
+        return "https://evil.example/redirect"
 
 
 class FakeResponseNoCost(FakeResponse):
@@ -104,6 +110,15 @@ class ProviderRouterTests(unittest.TestCase):
         self.assertEqual(self.ledger.events()[0]["status"], "cost_unverified")
 
     @patch("core.provider_router_v1.urllib.request.urlopen", return_value=FakeResponse())
+    @patch("core.provider_router_v1.urllib.request.urlopen", return_value=FakeResponseRedirect())
+    def test_cross_host_redirect_is_blocked(self, mock):
+        with self.assertRaisesRegex(ProviderRequestError, "redirect_or_status"):
+            self.router.call(
+                provider="openrouter", model="vendor/model:free",
+                messages=[{"role": "user", "content": "hi"}],
+            )
+        self.assertEqual(self.ledger.events()[0]["status"], "error")
+
     def test_oversized_response_is_logged_and_rejected(self, mock):
         router = ProviderRouterV1(
             ledger=self.ledger, policy={"max_response_bytes": 16},
