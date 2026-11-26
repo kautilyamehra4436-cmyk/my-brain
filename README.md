@@ -1,50 +1,66 @@
-# 🧠 My AI Brain — v9.0 ULTIMATE UNIQUE
+# My AI Brain — Advait v9.0
 
-> ₹0 खर्च • फोन-ओनली लक्ष्य • Open-Source • मालिक का नियंत्रण • Self-Evolution (अभी blueprint)
+> Hard ₹0 spend • phone-first target • owner authority • evidence-led local execution
 
-## 🚫 Zero-spend rule
-**किसी भी स्थिति में ₹0 से अधिक खर्च नहीं।** Paid APIs/hosting/subscriptions/credit/loans/auto-renewals/paid upgrades बंद। Free quota समाप्त होने पर pause + report; paid fallback नहीं। See `config.yml`.
+## Cost and authority
 
-## 🚀 Quick Start
-`START_HERE.md` → `onboarding.md`
+The hard-zero policy in `config.yml` is controlling. Paid APIs, hosting, subscriptions, credit, loans, paid upgrades and auto-renewals remain disabled. Exhausted or unknown free quota means stop and report; there is no paid fallback. The owner retains final authority over money, legal commitments, credentials, external messages, sensitive data sharing and security/core changes.
 
-## 🧪 Runtime / tests
+## Canonical runtime
 
-Create a draft plan:
+- `core/atc_planner.py`: ATC v1.2 deterministic planning and reflection. It is not an LLM and does not perform live web research.
+- `core/atc_worker_bridge_managed_v3.py`: canonical managed bridge from an ATC draft to an explicitly selected local tool task.
+- `core/governed_self_build_runtime_v3.py`: canonical governed local runtime.
+- `core/managed_task_queue_v3.py`: durable SQLite queue with leases, expiry recovery and bounded attempts. Terminal completion/failure is fenced by the active worker identity and unexpired lease.
+- `core/worker.py`: bounded host-allowlisted worker with zero-cost, risk and evidence gates. No default network, browser, shell, payment or external-action handlers are shipped.
+- `core/governed_self_build_factory_v1.py`: fixed local operation catalogue only: `text.word_count`, `text.sha256`, `json.canonicalize`, `csv.profile`.
+- `core/managed_sqlite_v1.py`: shared SQLite connection lifecycle foundation.
+
+The older generic `ManagedSelfBuildRuntimeV3` and V1 bridge remain for compatibility/tests; the canonical governed path is `GovernedSelfBuildRuntimeV3` through `ATCWorkerBridgeManagedV3`. The compatibility-named script `scripts/advait_atc_worker_bridge_v1.py` now exercises that managed V3 path.
+
+## Run and test
+
+Create an ATC draft:
+
 ```sh
 python -m core.atc_planner --ledger atc.db think "My goal" --constraint "phone-only" --constraint "zero cost"
-python -m core.atc_planner --ledger atc.db think "My goal" --quota-exhausted
 python -m core.atc_planner --ledger atc.db status
 ```
-Add `--enqueue` only to store plan-only steps in the existing queue; it does not execute them.
 
-- `RUNTIME_QUICKSTART.md`: setup, examples and test command.
-- `tests/test_worker.py`: synthetic worker lifecycle, allowlist, cost/quota, approval and evidence-gate tests.
-- `core/zero_cost_guard.py`: fail-closed helper for cost/quota/sensitive-action checks.
-- `core/task_queue.py`: local SQLite task queue and audit log; it stores/claims tasks but does not execute payloads by itself.
-- `core/worker.py`: bounded worker v0.1 (branch/PR pending); executes only explicitly marked tasks through host-registered handlers, with zero-cost, approval and evidence-verification gates. No default external adapters are shipped.
-- `core/atc_planner.py`: ATC Thinking/Planning Core v1.2, merged to main; rule-based draft plans, risk flags, heuristic strategy comparison, SQLite integrity ledger. No LLM, web research or task execution.
-- ATC integration map/FIR: `docs/ATC_INTEGRATION_MAP.md`, `docs/ATC_FIR_v1.2.md`.
-- GitHub Actions run #72: 38/38 tests passed (26 planner + 7 runtime + 5 handoff) and compile checks. Android/Termux and 24-hour stability remain untested.
+Run the local ATC-to-governed-worker integration smoke:
 
-## 🔌 Integrations
-- `INTEGRATIONS.md`: open-source/free tools, integration order, caveats, status.
-- `integrations/registry.json`: machine-readable registry.
-- Verified connected now: GitHub repository access. Other entries are candidates/plans, not live integrations.
+```sh
+python scripts/advait_atc_worker_bridge_v1.py
+```
 
-## 📊 Health Score
-अभी: **0/100** (implementation/metrics not verified; score not yet computed)
+Run tests:
 
-## 📁 22 Layers
-Foundation → Brain → Orchestrator → Workers → Engine → Memory → Smart → Security → Observability → Compliance → Gates → Revenue → Command → Tasks → Self-Evolve → Zero-Trust → Sovereign → Edge → Scale → Mobile → Soul → Emergence
+```sh
+python -m unittest discover -s tests -v
+python -m compileall -q core tests
+```
 
-## 🎯 MVP
-Layer list is blueprint only until runtime tests verify it.
+## Verified boundary — 2026-11-27
 
-## ⚠️ Core boundaries
+- PR #35 merged the durable leased queue into the governed runtime and routed the ATC integration smoke through the managed V3 bridge.
+- GitHub Actions run [45906541842](https://github.com/kautilyamehra4436-cmyk/my-brain/actions/runs/45906541842) passed.
+- My Brain PRs #33/#34 fixed SQLite connection lifecycle defects in legacy TaskQueue and ProviderCallLedger.
+- Queue lease-owner fencing is tested. Lease heartbeat/renewal and full concurrent stress testing remain pending.
+- The runtime is manually invoked and local-only. It is not a persistent agent, scheduler, browser, live bounty executor or payment system.
+
+## Not implemented or not verified
+
+No LLM reasoning runtime, live web research, production customer adapter, outbound outreach, authenticated production owner identity, independent production verifier, Android/Termux run, 24-hour operation, dashboard, payment collection or realized revenue is verified. B2B CSV reconciliation and the Advait OS Gate remain specialist modules in their source repositories and are not yet wired into this runtime.
+
+## Blueprint-only layers
+
+The 22-layer architecture and Self-Evolution vision remain roadmap material until each layer has a tested runtime implementation. Health score remains uncomputed; do not treat a layer list as deployed capability.
+
+## Core boundaries
+
 - Owner remains final authority.
-- No spend, no paid service, no borrowing, no automatic reinvestment.
-- Legal, payments, account changes, data sharing, and irreversible actions require owner control.
-- Never claim integration, automation, earnings, or 24-hour operation unless actually tested.
+- No spending, paid service, borrowing or automatic reinvestment.
+- Legal, payments, account changes, data sharing and irreversible actions require owner control.
+- Never claim integration, automation, earnings or 24-hour operation unless actually tested.
 
-## 📌 License: MIT
+License: MIT.
