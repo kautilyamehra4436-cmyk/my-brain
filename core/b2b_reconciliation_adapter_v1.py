@@ -47,8 +47,8 @@ class B2BReconciliationAdapterV1:
             raise TypeError("reconciler must be callable")
         self.vault = FinancialRecordVaultV1(vault_root)
 
-    def stage_csv(self, content: bytes) -> dict[str, Any]:
-        return self.vault.stage_csv(content)
+    def stage_csv(self, content: bytes, *, allow_unencrypted_storage: bool = False) -> dict[str, Any]:
+        return self.vault.stage_csv(content, allow_unencrypted_storage=allow_unencrypted_storage)
 
     def worker_handlers(self):
         return {ADAPTER_NAME: self.handle}
