@@ -97,8 +97,10 @@ class FinancialRecordVaultV1:
             raise FinancialVaultError("vault_artifact_exceeds_size_limit")
         return content
 
-    def stage_csv(self, content: bytes) -> dict[str, Any]:
-        """Stage an explicitly supplied CSV; return only an opaque ID and digest."""
+    def stage_csv(self, content: bytes, *, allow_unencrypted_storage: bool = False) -> dict[str, Any]:
+        """Stage CSV only after explicit acknowledgement that storage is not encrypted."""
+        if allow_unencrypted_storage is not True:
+            raise PermissionError("explicit_unencrypted_storage_acknowledgement_required")
         if not isinstance(content, bytes):
             raise TypeError("CSV source must be bytes")
         if not content or len(content) > MAX_SOURCE_BYTES:
