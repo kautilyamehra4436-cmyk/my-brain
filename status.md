@@ -12,7 +12,8 @@
 | Hard ₹0 configuration | IMPLEMENTED | `config.yml` sets hard_zero, INR 0, paid services/API/hosting/subscriptions false and stop-on-quota-exhaustion |
 | Zero-cost guard | IMPLEMENTED; LIMITED | Helper tests zero cost, positive cost, sensitive actions, quota exhaustion and invalid cost; global enforcement across all adapters is not proven |
 | ATC v1.2 planner | IMPLEMENTED; TESTED | Deterministic rule-based draft planner; no LLM, live web research or execution |
-| SQLite task queue | IMPLEMENTED; TESTED | Enqueue/claim/audit; completion requires injected verifier and evidence |
+| SQLite task queue | IMPLEMENTED; TESTED | Enqueue/claim/audit; eligible claiming preserves plan-only tasks; completion requires injected verifier and evidence |
+| Bounded worker v0.1 | IMPLEMENTED IN THIS BRANCH; CI PASS | One eligible task per invocation, host-allowlisted handler only, zero-cost gate, exact owner-verifier hook for high/critical, independent evidence-verifier requirement; no default real-world adapters |
 | Evidence verifier | INTERFACE ONLY | Injected callback contract; no deployed independent production verifier |
 | ATC handoff | IMPLEMENTED; LIMITED | Packages reviewed candidates as REVIEWED_NOT_AUTHORIZED; does not authorize or execute |
 | Money approval registry | POLICY CORRECTED IN THIS BRANCH | Exact owner approval is required by policy; hard-zero runtime still blocks money actions |
@@ -29,7 +30,8 @@
 
 - GitHub Actions run [45841540642](https://github.com/kautilyamehra4436-cmyk/my-brain/actions/runs/45841540642): completed successfully at the last inspected checkpoint; unit-test and compile steps passed.
 - The current runtime tests cover zero-cost decisions and evidence-gated task-queue behavior.
-- A new registry-policy regression test is included in the current governance-fix branch; its CI result must be checked before calling it passed.
+- Money registry correction merged in commit `7aeb540c91c357be26744d4b77c63d5aa1ba214f`; CI run [45870295058](https://github.com/kautilyamehra4436-cmyk/my-brain/actions/runs/45870295058) passed.
+- Bounded worker v0.1 branch CI run [45870665507](https://github.com/kautilyamehra4436-cmyk/my-brain/actions/runs/45870665507) passed, including unit tests and compile checks; 9 worker-specific tests were added.
 - GitHub CI is not Android/Termux testing.
 
 ## Operating rules
@@ -43,13 +45,13 @@
 
 ## Next implementation sequence
 
-1. Merge the registry policy correction only after CI passes.
-2. Build a bounded worker around the existing queue and Advait execution contracts; no arbitrary shell/code execution.
-3. Add task leases, stale-running recovery, cancellation, bounded retry and idempotency/reconciliation.
-4. Wire zero-cost and risk checks at every adapter boundary and test bypass attempts.
-5. Add an independent verifier for task-specific acceptance criteria.
-6. Integrate the Personal Algorithm cycle into the task lifecycle.
-7. Add authenticated exact-action owner approval before enabling any external/high-risk capability.
+1. Review/merge bounded worker v0.1 after its PR checks and code review.
+2. Add task leases, stale-running recovery, cancellation, bounded retry and idempotency/reconciliation.
+3. Wire zero-cost and risk checks at every adapter boundary and test bypass attempts.
+4. Implement independent task-specific verification; current verifier remains injected.
+5. Integrate the Personal Algorithm cycle into the task lifecycle.
+6. Add authenticated exact-action owner approval before enabling any external/high-risk capability.
+7. Add real, narrow local adapters (starting with synthetic-tested file/CSV work) only with path, size, privacy and evidence controls.
 8. Run synthetic integration tests, then Android/Termux tests, then a 24-hour soak.
 
 **Resume point:** Step 1 — inspect the branch CI result and review the registry/test diff. Do not call the Brain an execution agent until Steps 2–6 are implemented and tested.
