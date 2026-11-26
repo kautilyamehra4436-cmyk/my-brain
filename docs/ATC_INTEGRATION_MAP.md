@@ -1,5 +1,5 @@
 # Advait Engine Integration Map — ATC v1.2
-Date: 2026-11-27 | Status: planner + managed local execution bridge implemented; external integrations remain pending.
+Date: 2026-11-27 | Status: planner, governed local worker and pinned B2B CSV adapter integrated; external actions remain pending.
 ## Placement
 ATC is the **Thinking/Planning Core** inside `my-brain`; it does not replace the task queue, zero-cost guard, bounded executor, business worker, or governance.
 | Component | Canonical location | Responsibility | Relationship |
@@ -15,6 +15,7 @@ ATC is the **Thinking/Planning Core** inside `my-brain`; it does not replace the
 | Governed runtime | `my-brain/core/governed_self_build_runtime_v3.py` | Fixed local tool operations and bounded execution | Uses ManagedTaskQueueV3; no daemon/scheduler/external I/O |
 | Managed ATC bridge | `my-brain/core/atc_worker_bridge_managed_v3.py` | Explicitly selected ATC draft → local governed task | CI smoke verified; not an external business executor |
 | Bounded execution reference | `advait-100x-research-audit/advait_engine.py` | Allowlist, budgets, approval binding, evidence/reconciliation | Separate reference implementation; no production adapters |
+| B2B CSV adapter | `core/b2b_reconciliation_adapter_v1.py` + pinned `vendor/advait_b2b` | Bounded CSV reconciliation, separate artifact store, evidence recomputation | Synthetic CI only; vault unencrypted at rest; no real customer data |
 | Owner Approval Gate | advait_os/advait_gate_v01.py | Hardened local file gate with fail-closed verifier hook | v0.2 merged to main; HIGH/CRITICAL remain blocked without a real authenticated provider |
 | PanchTatva C10 | `advait_pure_sharp/advait_panch_tatva_c10.py` | Rule-based 10-scenario simulation harness | Regression/scenario test suite, not intelligence proof |
 | B2B reconciliation worker | `advait-100x-research-audit/b2b_reconcile.py` | CSV exception detection, normalized output, summary | Specialized task worker; source CSV is not overwritten |
@@ -25,7 +26,8 @@ ATC is the **Thinking/Planning Core** inside `my-brain`; it does not replace the
 4. An owner or approved workflow must explicitly select a fixed local operation and provide its bounded input.
 5. The managed V3 bridge routes only that selected task to the governed runtime; the worker checks allowlist, cost/quota, risk and evidence.
 6. ManagedTaskQueueV3 fences terminal completion/failure by the active worker identity and unexpired lease. Lease heartbeat and multi-process stress remain pending.
-7. This path performs no external customer action. Any future network, file-sharing, outreach, payment or contract adapter needs a separate reviewed contract, owner permission and independent evidence.
+7. B2B CSV staging requires explicit local consent and an explicit acknowledgement that the financial artifact store is unencrypted. The queue stores only an opaque artifact ID; no real customer data is authorized until encryption and authenticated owner identity exist.
+8. This path performs no external customer action. Any future network, file-sharing, outreach, payment or contract adapter needs a separate reviewed contract, owner permission and independent evidence.
 ## Security findings to preserve
 - Advait OS Gate v0.2 removed the hardcoded placeholder token, rejects sandbox/target symlinks, uses exclusive no-overwrite writes, and confines tests to TemporaryDirectory. Its 15 regression tests and Python compile check passed in GitHub Actions. No authenticated owner provider is deployed, so HIGH/CRITICAL actions remain denied by default.
 - Advait 100x no longer treats a locally computable approval token as owner authentication. HIGH-risk tasks require an injected authenticated exact-task verifier; the offline repository ships no such provider, so they fail closed.
@@ -48,3 +50,8 @@ Read-back covered the files linked/referenced by repository README/status and th
 - Stale-worker completion/failure is rejected by lease-owner and expiry checks.
 - No LLM runtime, live research, external adapters, Android run, scheduler or 24-hour operation is verified.
 - Four-repository path inventory: 206 files / 226 tree entries; see the canonical snapshot in the 100X repository.
+
+
+## B2B integration checkpoint — 2026-11-27
+
+My Brain PR #37 pins the 100X B2B source and routes the CSV reconciler through the governed worker. CI [45908960326](https://github.com/kautilyamehra4436-cmyk/my-brain/actions/runs/45908960326) passed 131 tests and a synthetic 5-row / 7-flag integration smoke. This proves code integration only, not customer readiness. The separate financial store is not encrypted at rest.
