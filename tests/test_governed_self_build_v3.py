@@ -2,6 +2,7 @@ import tempfile, unittest
 from pathlib import Path
 from core.governed_self_build_factory_v1 import GovernedSelfBuildToolFactoryV1
 from core.governed_self_build_runtime_v3 import GovernedSelfBuildRuntimeV3
+from core.atc_worker_bridge_managed_v3 import ATCWorkerBridgeManagedV3
 from core.self_build_factory_v1 import ToolExecutionError, ToolSpecError
 
 SPEC={"name":"text.counter","version":"1.0.0","operation":"text.word_count","description":"Counts text"}
@@ -47,6 +48,22 @@ class GovernedFactoryTests(unittest.TestCase):
   with tempfile.TemporaryDirectory() as d:
    rt=GovernedSelfBuildRuntimeV3(d)
    self.assertEqual(type(rt.queue).__name__,"ManagedTaskQueueV3")
+
+ def test_atc_bridge_runs_through_governed_leased_runtime(self):
+  with tempfile.TemporaryDirectory() as d:
+   bridge=ATCWorkerBridgeManagedV3(d)
+   plan=bridge.plan("Count words in a local text file")
+   task=bridge.enqueue_local_tool(
+    plan,
+    {"name":"text.bridge","version":"1.0.0","operation":"text.word_count","description":"Count bounded text"},
+    {"text":"one two three"},
+   )
+   outcome=bridge.run_once()
+   report=bridge.report(task)
+   self.assertEqual(outcome["status"],"done")
+   self.assertEqual(report["status"],"done")
+   self.assertEqual(type(bridge.runtime.queue).__name__,"ManagedTaskQueueV3")
+   self.assertEqual(bridge.runtime.queue.lease_status()["active_leases"],[])
 
  def test_task_limit_is_bounded(self):
   with tempfile.TemporaryDirectory() as d:
