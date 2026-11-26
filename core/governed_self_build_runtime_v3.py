@@ -2,7 +2,7 @@
 from __future__ import annotations
 from pathlib import Path
 from typing import Any
-from core.managed_task_queue_v1 import ManagedTaskQueueV1
+from core.managed_task_queue_v3 import ManagedTaskQueueV3
 from core.governed_self_build_factory_v1 import GovernedSelfBuildToolFactoryV1
 from core.worker import BoundedWorker
 
@@ -13,7 +13,7 @@ class GovernedSelfBuildRuntimeV3:
         root=Path(data_dir)
         root.mkdir(parents=True, exist_ok=True)
         self.data_dir=root
-        self.queue=ManagedTaskQueueV1(root/"advait_tasks.db")
+        self.queue=ManagedTaskQueueV3(root/"advait_tasks.db")
         self.factory=GovernedSelfBuildToolFactoryV1(root/"advait_tools.db")
         self.worker=BoundedWorker(
             self.queue, self.factory.worker_handlers(),
@@ -30,16 +30,21 @@ class GovernedSelfBuildRuntimeV3:
                  "input":{"spec":spec,"input":tool_input}}
         return self.queue.enqueue(title,payload)
 
+    def run_once(self)->dict[str,Any]:
+        return self.worker.run_once()
+
     def run_until_idle(self,max_tasks:int=5)->dict[str,Any]:
         if not isinstance(max_tasks,int) or isinstance(max_tasks,bool) or not 1<=max_tasks<=5:
             raise ValueError("max_tasks must be an integer from 1 through 5")
         outcomes=[]
         for _ in range(max_tasks):
-            out=self.worker.run_once()
+            out=self.run_once()
             if out.get("status")=="idle": break
             outcomes.append(out)
         return {"processed":len(outcomes),
                 "done":sum(x.get("status")=="done" for x in outcomes),
                 "failed":sum(x.get("status")=="failed" for x in outcomes),
                 "outcomes":outcomes,
-                "remaining_pending":len(self.queue.list_tasks(status="pending"))}
+                "remaining_pending":len(self.queue.list_tasks(status="pending")),
+                "queue_version":"ManagedTaskQueueV3",
+                "lease_status":self.queue.lease_status()}
