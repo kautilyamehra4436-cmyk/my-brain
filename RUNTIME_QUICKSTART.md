@@ -44,3 +44,53 @@ print(q.audit_events())
 - The queue stores tasks but deliberately does not execute scripts or arbitrary payloads.
 - Do not store credentials, private client data, or sensitive records in task payloads.
 - Android Termux setup and on-device testing remain pending.
+
+## Bounded worker v0.1 (synthetic adapter only)
+
+The worker can run one task per call only when its payload explicitly sets
+`execution_mode: "bounded_adapter"`. It will not claim ATC `plan_only` tasks.
+Only handlers supplied by the host in an allowlist can run; arbitrary shell/code
+execution and network/payment adapters are not provided.
+
+```python
+from core.task_queue import TaskQueue
+from core.worker import BoundedWorker
+
+def local_fixture(data):
+    value = data["value"]
+    return {
+        "result": {"value": value},
+        "evidence": {"fixture": "synthetic", "expected_value": value},
+    }
+
+def independent_check(task_id, result, evidence):
+    return (
+        bool(task_id)
+        and evidence.get("fixture") == "synthetic"
+        and result.get("value") == evidence.get("expected_value")
+    )
+
+queue = TaskQueue("brain_tasks.db")
+queue.enqueue("Synthetic local task", {
+    "execution_mode": "bounded_adapter",
+    "adapter": "fixture.local",
+    "action": "local_analysis",
+    "estimated_cost": 0,
+    "free_quota_available": True,
+    "risk": "low",
+    "input": {"value": "hello"},
+})
+worker = BoundedWorker(
+    queue,
+    {"fixture.local": local_fixture},
+    evidence_verifier=independent_check,
+)
+print(worker.run_once())
+```
+
+High/critical tasks require an injected exact-action owner verifier. The
+repository does not ship a production authenticated verifier. The evidence
+verifier above is a synthetic example, not a production verifier. No real
+customer file, browser, email, bounty, payment or external system is touched.
+The worker is an execution framework; useful real-world adapters still need
+separate implementation, permissions, tests and owner approval.
