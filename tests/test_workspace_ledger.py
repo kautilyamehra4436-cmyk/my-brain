@@ -62,10 +62,17 @@ class WorkspaceLedgerTests(unittest.TestCase):
         self.assertEqual(self.ledger.get_record("owner-session", record_id)["body"], "v1")
 
     def test_agent_cannot_read_owner_audit(self):
+        self.ledger.create_record(
+            "agent-session", kind="report", title="Agent audit fixture",
+            body="record created for audit visibility test", visibility="shared")
         with self.assertRaises(PermissionError):
             self.ledger.audit_events("agent-session")
         events = self.ledger.audit_events("owner-session")
-        self.assertTrue(any(e["event"] == "record_created" for e in events))
+        self.assertTrue(any(
+            e["event"] == "record_created"
+            and e["actor_id"] == "agent-session"
+            for e in events
+        ))
 
     def test_input_validation_and_search_filters(self):
         self.ledger.create_record(
