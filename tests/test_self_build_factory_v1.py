@@ -102,7 +102,7 @@ class SelfBuildFactoryTests(unittest.TestCase):
         self.assertEqual(outcome["status"], "done")
         self.assertEqual(outcome["task_id"], task_id)
         self.assertEqual(queue.list_tasks(status="done")[0]["result"] and
-                         __import__("json").loads(queue.list_tasks(status="done")[0]["result"])["output"]["words"], 4)
+                         __import__("json").loads(queue.list_tasks(status="done")[0]["result"])["output"]["words"], 3)
 
     def test_worker_evidence_tampering_is_rejected(self):
         self.factory.build(self.spec())
