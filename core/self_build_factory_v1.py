@@ -6,13 +6,13 @@ Python, imports user modules, runs shell commands, or performs network access.
 from __future__ import annotations
 
 import csv
-from contextlib import contextmanager
 import hashlib
 import io
 import json
 import re
 import sqlite3
 from pathlib import Path
+from core.managed_sqlite_v1 import managed_connection
 from typing import Any
 
 MAX_INPUT_BYTES = 1_000_000
@@ -75,23 +75,8 @@ class SelfBuildToolFactory:
                    END"""
             )
 
-    def _connect(self):
-        con = sqlite3.connect(self.db_path, timeout=10)
-        con.execute("PRAGMA foreign_keys=ON")
-        return con
-
-    @contextmanager
     def _connection(self):
-        """Commit on success, roll back on failure, and always close the handle."""
-        con = self._connect()
-        try:
-            yield con
-            con.commit()
-        except Exception:
-            con.rollback()
-            raise
-        finally:
-            con.close()
+        return managed_connection(self.db_path, timeout=10)
 
     @staticmethod
     def validate_spec(spec: dict[str, Any]) -> dict[str, str]:

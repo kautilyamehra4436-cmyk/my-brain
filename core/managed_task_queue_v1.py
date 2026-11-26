@@ -1,30 +1,12 @@
-"""Additive TaskQueue variant that deterministically closes SQLite connections."""
+"""Compatibility TaskQueue variant using the shared hardened SQLite lifecycle."""
 from __future__ import annotations
 
-import sqlite3
-from contextlib import contextmanager
-
+from core.managed_sqlite_v1 import managed_connection
 from core.task_queue import TaskQueue
 
 
 class ManagedTaskQueueV1(TaskQueue):
-    """Drop-in TaskQueue subclass with explicit SQLite connection closure.
+    """Drop-in compatibility class routed through the shared SQLite manager."""
 
-    The base TaskQueue uses sqlite3.Connection as a transaction context manager;
-    that commits/rolls back but does not close the connection. This subclass
-    preserves the base API while closing every connection in a finally block.
-    """
-
-    @contextmanager
     def _connect(self):
-        con = sqlite3.connect(self.db_path, timeout=10)
-        try:
-            con.execute("PRAGMA journal_mode=WAL")
-            con.execute("PRAGMA foreign_keys=ON")
-            yield con
-            con.commit()
-        except BaseException:
-            con.rollback()
-            raise
-        finally:
-            con.close()
+        return managed_connection(self.db_path, timeout=10)
