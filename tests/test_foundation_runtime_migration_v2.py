@@ -22,7 +22,8 @@ class FoundationRuntimeMigrationV2Tests(unittest.TestCase):
             self.assertEqual(len(ids),5)
             tasks=adapter.queue.list_tasks()
             self.assertEqual(len(tasks),5)
-            self.assertTrue(all(item["payload"]["status"]=="plan_only" for item in tasks))
+            import json
+            self.assertTrue(all(json.loads(item["payload"])["status"]=="plan_only" for item in tasks))
     def test_adapter_rejects_non_draft_records(self):
         with tempfile.TemporaryDirectory() as tmp:
             adapter=ManagedATCQueueAdapterV1(Path(tmp)/"queue.db")
