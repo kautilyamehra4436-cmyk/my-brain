@@ -23,7 +23,7 @@ OPERATIONS = {
     "csv.profile",
 }
 _NAME = re.compile(r"^[a-z][a-z0-9_.-]{1,63}$")
-_VERSION = re.compile(r"^[0-9]+\\.[0-9]+\\.[0-9]+$")
+_VERSION = re.compile(r"^[0-9]+\.[0-9]+\.[0-9]+$")
 
 
 def canonical_json(value: Any) -> str:
