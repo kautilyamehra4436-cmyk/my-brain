@@ -131,6 +131,25 @@ class ProviderRouterTests(unittest.TestCase):
             )
         self.assertEqual(self.ledger.events()[0]["status"], "error")
 
+    @patch("core.provider_router_v1.urllib.request.urlopen", return_value=FakeResponse())
+    def test_reasoning_can_be_disabled_without_bypassing_router(self, mock):
+        self.router.call(
+            provider="openrouter", model="vendor/model:free",
+            messages=[{"role": "user", "content": "hi"}],
+            reasoning_enabled=False,
+        )
+        request = mock.call_args.args[0]
+        body = json.loads(request.data.decode("utf-8"))
+        self.assertEqual(body["reasoning"], {"enabled": False})
+
+    def test_reasoning_flag_must_be_boolean(self):
+        with self.assertRaisesRegex(ValueError, "reasoning_enabled"):
+            self.router.call(
+                provider="openrouter", model="vendor/model:free",
+                messages=[{"role": "user", "content": "hi"}],
+                reasoning_enabled="false",
+            )
+
     def test_oversized_request_rejected_before_network(self):
         with self.assertRaisesRegex(ValueError, "request_too_large"):
             self.router.call(
