@@ -19,7 +19,7 @@ class ProviderCallLedgerConnectionLifecycleTests(unittest.TestCase):
             return connection
 
         with tempfile.TemporaryDirectory() as tmp:
-            with patch("core.provider_router_v1.sqlite3.connect", side_effect=tracked_connect):
+            with patch("core.managed_sqlite_v1.sqlite3.connect", side_effect=tracked_connect):
                 ledger = ProviderCallLedger(Path(tmp) / "nested" / "provider.db")
                 ledger.append(
                     request_id="request-1",
