@@ -238,7 +238,7 @@ class ProviderRouterV1:
             provider_usage = data.get("usage") if isinstance(data.get("usage"), dict) else {}
             raw_cost = provider_usage.get("cost")
             try:
-                cost = None if raw_cost is None else float(raw_cost)
+                cost = None if raw_cost is None or isinstance(raw_cost, bool) else float(raw_cost)
             except (TypeError, ValueError):
                 cost = None
             safe_usage = {
@@ -284,7 +284,14 @@ class ProviderRouterV1:
                 http_status=int(exc.code), latency_ms=latency, error_code="http_error",
             )
             raise ProviderRequestError("provider_http_error_" + str(exc.code)) from None
-        except ProviderRequestError:
+        except ProviderRequestError as exc:
+            latency = int((time.monotonic() - started) * 1000)
+            self.ledger.append(
+                request_id=request_id, provider=provider, model=model,
+                request_sha256=request_sha256, response_sha256=None, status="error",
+                http_status=http_status, latency_ms=latency,
+                error_code=str(exc)[:80],
+            )
             raise
         except Exception as exc:
             latency = int((time.monotonic() - started) * 1000)
