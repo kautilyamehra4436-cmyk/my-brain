@@ -49,6 +49,15 @@ ENGINEERING_LESSONS = (
         "verification": "Reject unsupported findings and block writes in read-only audit mode",
         "status": "ENFORCED_IN_AI_DEVELOPER_V1",
     },
+    {
+        "id": "FOUNDATION-006",
+        "title": "Test database rollback with transactional operations",
+        "trigger": "Initial rollback test assumed CREATE TABLE would be rolled back",
+        "root_cause": "SQLite transaction behavior for DDL differs from ordinary DML under Python sqlite3 transaction control",
+        "mandatory_rule": "Use INSERT/UPDATE/DELETE assertions to test rollback; test schema setup separately",
+        "verification": "Raise after a DML write and verify the row is absent after reopening the database",
+        "status": "ENFORCED_IN_FOUNDATION_TESTS",
+    },
 )
 
 
