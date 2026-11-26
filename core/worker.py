@@ -54,9 +54,11 @@ class BoundedWorker:
             raise ValueError("lease_seconds must be positive")
         self.queue = queue
         self.lease_aware = bool(getattr(queue, "requires_lease_owner", False))
-        self.worker_id = worker_id or uuid.uuid4().hex
-        if not isinstance(self.worker_id, str) or not self.worker_id.strip() or len(self.worker_id) > 128:
+        if worker_id is None:
+            worker_id = uuid.uuid4().hex
+        if not isinstance(worker_id, str) or not worker_id.strip() or len(worker_id) > 128:
             raise ValueError("invalid worker_id")
+        self.worker_id = worker_id
         self.lease_seconds = float(lease_seconds)
         self.handlers = dict(handlers)
         self.evidence_verifier = evidence_verifier
