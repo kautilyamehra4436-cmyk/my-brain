@@ -58,6 +58,15 @@ ENGINEERING_LESSONS = (
         "verification": "Raise after a DML write and verify the row is absent after reopening the database",
         "status": "ENFORCED_IN_FOUNDATION_TESTS",
     },
+    {
+        "id": "FOUNDATION-007",
+        "title": "Tests must assert the actual contract, not an invented paraphrase",
+        "trigger": "AI Developer v2 prompt safety test failed because the expected phrase did not match the real system instruction",
+        "root_cause": "The test asserted wording that the prompt never promised",
+        "mandatory_rule": "Derive assertions from the exact implemented contract; prefer semantic invariants when wording is not itself the contract",
+        "verification": "Review the tested source and ensure every exact-string assertion is actually present or explicitly required",
+        "status": "ENFORCED_IN_AI_DEVELOPER_V2_TESTS",
+    },
 )
 
 
