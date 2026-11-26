@@ -77,15 +77,38 @@ class TaskQueue:
         )
         return [dict(zip(keys, row)) for row in rows]
 
-    def claim_next(self):
+    def claim_next(self, eligible=None):
+        """Atomically claim the oldest pending task accepted by an optional predicate.
+
+        The predicate receives the decoded payload. Non-matching tasks remain pending;
+        this lets an execution worker leave ATC plan-only records untouched.
+        """
         now = time.time()
         with self._connect() as con:
             con.execute("BEGIN IMMEDIATE")
-            row = con.execute(
+            rows = con.execute(
                 "SELECT id,title,payload FROM tasks WHERE status='pending' "
-                "ORDER BY created_at LIMIT 1"
-            ).fetchone()
-            if not row:
+                "ORDER BY created_at"
+            ).fetchall()
+            row = None
+            payload = None
+            for candidate in rows:
+                try:
+                    candidate_payload = json.loads(candidate[2])
+                except (TypeError, ValueError):
+                    if eligible is not None:
+                        continue
+                    candidate_payload = {}
+                if eligible is not None:
+                    try:
+                        if not eligible(candidate_payload):
+                            continue
+                    except Exception:
+                        continue
+                row = candidate
+                payload = candidate_payload
+                break
+            if row is None:
                 return None
             cur = con.execute(
                 "UPDATE tasks SET status='running',updated_at=? "
@@ -97,7 +120,7 @@ class TaskQueue:
             self._audit(con, "claim", row[0], {})
             return {
                 "id": row[0], "title": row[1],
-                "payload": json.loads(row[2]), "status": "running",
+                "payload": payload, "status": "running",
             }
 
     def complete(self, task_id, result=None, *, evidence=None, verifier=None):
