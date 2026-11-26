@@ -1,0 +1,55 @@
+name: Advait B2B Adapter Integration v1
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - ".gitmodules"
+      - "vendor/advait_b2b"
+      - "core/b2b_reconciliation_adapter_v1.py"
+      - "core/financial_record_vault_v1.py"
+      - "core/governed_self_build_runtime_v3.py"
+      - "core/atc_worker_bridge_managed_v3.py"
+      - "scripts/advait_b2b_integration_smoke_v1.py"
+      - "tests/test_b2b_reconciliation_adapter_v1.py"
+      - ".github/workflows/b2b-adapter-integration-v1.yml"
+  push:
+    branches: ["main"]
+    paths:
+      - ".gitmodules"
+      - "vendor/advait_b2b"
+      - "core/b2b_reconciliation_adapter_v1.py"
+      - "core/financial_record_vault_v1.py"
+      - "core/governed_self_build_runtime_v3.py"
+      - "core/atc_worker_bridge_managed_v3.py"
+      - "scripts/advait_b2b_integration_smoke_v1.py"
+      - "tests/test_b2b_reconciliation_adapter_v1.py"
+      - ".github/workflows/b2b-adapter-integration-v1.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: advait-b2b-adapter-integration-v1
+  cancel-in-progress: false
+
+jobs:
+  b2b-integration:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Verify pinned submodule revision
+        run: git submodule status
+      - name: Run complete unit suite
+        run: python -m unittest discover -v
+      - name: Compile core, tests and scripts
+        run: python -m compileall -q core tests scripts
+      - name: Run zero-network B2B integration smoke
+        run: python scripts/advait_b2b_integration_smoke_v1.py

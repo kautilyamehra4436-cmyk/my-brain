@@ -11,3 +11,17 @@ class ATCWorkerBridgeManagedV3(ATCWorkerBridgeV1):
         self.data_dir=root
         self.planner=ATCPlanner(root/"atc_thinking.db")
         self.runtime=GovernedSelfBuildRuntimeV3(root/"worker")
+
+    def stage_b2b_csv(
+        self, content: bytes, *, owner_consented: bool = False,
+        allow_unencrypted_storage: bool = False,
+    ):
+        return self.runtime.stage_b2b_csv(
+            content, owner_consented=owner_consented,
+            allow_unencrypted_storage=allow_unencrypted_storage,
+        )
+
+    def enqueue_b2b_reconciliation(self, input_artifact_id: str, *, owner_confirmed: bool = False):
+        return self.runtime.enqueue_b2b_reconciliation(
+            input_artifact_id, owner_confirmed=owner_confirmed
+        )

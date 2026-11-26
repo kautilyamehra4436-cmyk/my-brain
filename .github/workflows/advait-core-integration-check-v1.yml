@@ -17,6 +17,11 @@ jobs:
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@v4
+        with:
+          submodules: true
+          persist-credentials: false
+      - name: Verify pinned B2B source
+        run: git submodule status
       - uses: actions/setup-python@v5
         with:
           python-version: "3.13"
@@ -24,5 +29,7 @@ jobs:
         run: python -m unittest discover -v
       - name: Compile core, tests and scripts
         run: python -m compileall -q core tests scripts
-      - name: Run zero-API end-to-end integration
+      - name: Run zero-API ATC to local worker integration
         run: python scripts/advait_atc_worker_bridge_v1.py
+      - name: Run B2B CSV local integration
+        run: python scripts/advait_b2b_integration_smoke_v1.py

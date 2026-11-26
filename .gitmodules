@@ -1,0 +1,3 @@
+[submodule "vendor/advait_b2b"]
+	path = vendor/advait_b2b
+	url = https://github.com/kautilyamehra4436-cmyk/advait-100x-research-audit.git
