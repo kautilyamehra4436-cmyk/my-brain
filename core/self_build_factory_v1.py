@@ -6,6 +6,7 @@ Python, imports user modules, runs shell commands, or performs network access.
 from __future__ import annotations
 
 import csv
+from contextlib import contextmanager
 import hashlib
 import io
 import json
@@ -48,7 +49,7 @@ class SelfBuildToolFactory:
 
     def __init__(self, db_path: str | Path = "advait_self_build_tools_v1.db"):
         self.db_path = str(db_path)
-        with self._connect() as con:
+        with self._connection() as con:
             con.execute(
                 """CREATE TABLE IF NOT EXISTS tool_versions (
                     name TEXT NOT NULL,
@@ -79,6 +80,19 @@ class SelfBuildToolFactory:
         con.execute("PRAGMA foreign_keys=ON")
         return con
 
+    @contextmanager
+    def _connection(self):
+        """Commit on success, roll back on failure, and always close the handle."""
+        con = self._connect()
+        try:
+            yield con
+            con.commit()
+        except Exception:
+            con.rollback()
+            raise
+        finally:
+            con.close()
+
     @staticmethod
     def validate_spec(spec: dict[str, Any]) -> dict[str, str]:
         if not isinstance(spec, dict) or set(spec) != {
@@ -105,7 +119,7 @@ class SelfBuildToolFactory:
         encoded = canonical_json(clean)
         digest = sha256_text(encoded)
         try:
-            with self._connect() as con:
+            with self._connection() as con:
                 con.execute(
                     """INSERT INTO tool_versions
                        (name, version, operation, description, spec_json, spec_sha256)
@@ -118,7 +132,7 @@ class SelfBuildToolFactory:
         return {**clean, "spec_sha256": digest, "status": "built"}
 
     def get(self, name: str, version: str) -> dict[str, str] | None:
-        with self._connect() as con:
+        with self._connection() as con:
             row = con.execute(
                 """SELECT name, version, operation, description, spec_sha256
                    FROM tool_versions WHERE name=? AND version=?""",
@@ -129,7 +143,7 @@ class SelfBuildToolFactory:
         return dict(zip(("name", "version", "operation", "description", "spec_sha256"), row))
 
     def list_tools(self) -> list[dict[str, str]]:
-        with self._connect() as con:
+        with self._connection() as con:
             rows = con.execute(
                 """SELECT name, version, operation, description, spec_sha256
                    FROM tool_versions ORDER BY name, version"""
