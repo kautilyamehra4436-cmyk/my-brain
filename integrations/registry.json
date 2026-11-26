@@ -5,7 +5,7 @@
     "paid_services_allowed": false,
     "auto_spend": false,
     "credit_or_trial_autorenew": false,
-    "approval_required_for_any_money": false
+    "approval_required_for_any_money": true
   },
   "tools": [
     {
@@ -103,6 +103,7 @@
     "No payment, subscription, purchase, credit, paid API, paid hosting, or auto-renewal.",
     "No service may be marked connected unless connection or execution is verified.",
     "A tool can be recorded as candidate without being installed or connected.",
-    "If free quota/resource limits are reached, pause and report; do not incur charges."
+    "If free quota/resource limits are reached, pause and report; do not incur charges.",
+    "Any money-related action requires explicit owner approval bound to the exact action; the current hard-zero policy still blocks payment, transfer, withdrawal, purchase, subscription, and other spending in this runtime."
   ]
 }
