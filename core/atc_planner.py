@@ -9,13 +9,14 @@ import argparse
 import hashlib
 import json
 import sqlite3
-from contextlib import closing
+from contextlib import contextmanager
 import time
 import uuid
 from pathlib import Path
 from typing import Any, Optional
 
 from core.zero_cost_guard import evaluate as zero_cost_evaluate
+from core.managed_sqlite_v1 import managed_connection
 
 VERSION = "ATC-1.2.0"
 MAX_TEXT = 4000
@@ -97,57 +98,78 @@ class ATCLedger:
     """SQLite append-only event ledger with a hash chain; not tamper-proof against a writer."""
     def __init__(self, path: str | Path = "atc_thinking.db"):
         self.path = str(path)
-        Path(self.path).parent.mkdir(parents=True, exist_ok=True)
-        with closing(self._connect()) as con, con:
+        with self._connect() as con:
             con.execute("CREATE TABLE IF NOT EXISTS atc_records (record_id TEXT PRIMARY KEY, record_json TEXT NOT NULL, created REAL NOT NULL)")
             con.execute("CREATE TABLE IF NOT EXISTS atc_events (seq INTEGER PRIMARY KEY AUTOINCREMENT, prev_hash TEXT NOT NULL, event_json TEXT NOT NULL, event_hash TEXT NOT NULL UNIQUE, created REAL NOT NULL)")
 
+    @contextmanager
     def _connect(self):
-        con = sqlite3.connect(self.path, timeout=10)
-        con.execute("PRAGMA journal_mode=WAL")
-        con.execute("PRAGMA foreign_keys=ON")
-        return con
+        with managed_connection(self.path, timeout=10) as con:
+            con.row_factory = sqlite3.Row
+            yield con
 
     def record(self, record: dict[str, Any]) -> str:
         record_digest = hashlib.sha256(_canonical({k: v for k, v in record.items() if k != "ledger_hash"}).encode("utf-8")).hexdigest()
         event = {"type": "thinking_record", "record_id": record["record_id"], "record_digest": record_digest, "version": VERSION}
         event_json = _canonical(event)
-        with closing(self._connect()) as con, con:
+        with self._connect() as con:
             con.execute("BEGIN IMMEDIATE")
             row = con.execute("SELECT event_hash FROM atc_events ORDER BY seq DESC LIMIT 1").fetchone()
             previous = row[0] if row else "0" * 64
             digest = hashlib.sha256(_canonical({"prev_hash": previous, "event": event}).encode("utf-8")).hexdigest()
-            con.execute("INSERT INTO atc_records VALUES(?,?,?)", (record["record_id"], _canonical(record), time.time()))
+            stored_record = dict(record)
+            stored_record["ledger_hash"] = digest
+            con.execute("INSERT INTO atc_records VALUES(?,?,?)", (record["record_id"], _canonical(stored_record), time.time()))
             con.execute("INSERT INTO atc_events(prev_hash,event_json,event_hash,created) VALUES(?,?,?,?)", (previous,event_json,digest,time.time()))
         return digest
 
     def update_record(self, record: dict[str, Any]) -> None:
-        with closing(self._connect()) as con, con:
-            con.execute("UPDATE atc_records SET record_json=? WHERE record_id=?", (_canonical(record), record["record_id"]))
+        """Reject mutation; record() atomically stores the hash with the record."""
+        with self._connect() as con:
+            row = con.execute(
+                "SELECT record_json FROM atc_records WHERE record_id=?",
+                (record.get("record_id"),),
+            ).fetchone()
+        if row is None:
+            raise ValueError("atc_record_not_found")
+        existing = json.loads(row[0])
+        if existing != record:
+            raise ValueError("atc_record_is_immutable")
 
     def get(self, record_id: str) -> Optional[dict[str, Any]]:
-        with closing(self._connect()) as con, con:
+        with self._connect() as con:
             row = con.execute("SELECT record_json FROM atc_records WHERE record_id=?", (record_id,)).fetchone()
         return json.loads(row[0]) if row else None
 
     def verify(self) -> dict[str, Any]:
         previous = "0" * 64
         count = 0
-        with closing(self._connect()) as con, con:
+        with self._connect() as con:
             rows = con.execute("SELECT prev_hash,event_json,event_hash FROM atc_events ORDER BY seq").fetchall()
             records = {row[0]: row[1] for row in con.execute("SELECT record_id,record_json FROM atc_records").fetchall()}
+        latest = {}
         for stored_prev, event_json, stored_hash in rows:
             event = json.loads(event_json)
             expected = hashlib.sha256(_canonical({"prev_hash": previous, "event": event}).encode("utf-8")).hexdigest()
-            stored_record = records.get(event.get("record_id"))
-            if not stored_record:
-                return {"valid": False, "checked": count, "reason": "record_missing"}
-            record = json.loads(stored_record)
-            record_digest = hashlib.sha256(_canonical({k: v for k, v in record.items() if k != "ledger_hash"}).encode("utf-8")).hexdigest()
-            if stored_prev != previous or stored_hash != expected or event.get("record_digest") != record_digest:
-                return {"valid": False, "checked": count, "reason": "hash_chain_or_record_mismatch"}
+            if stored_prev != previous or stored_hash != expected:
+                return {"valid": False, "checked": count, "reason": "hash_chain_mismatch"}
+            record_id = event.get("record_id")
+            record_digest = event.get("record_digest")
+            if not isinstance(record_id, str) or not isinstance(record_digest, str):
+                return {"valid": False, "checked": count, "reason": "invalid_event"}
+            latest[record_id] = (record_digest, stored_hash)
             previous = stored_hash
             count += 1
+        if set(latest) != set(records):
+            return {"valid": False, "checked": count, "reason": "record_missing"}
+        for record_id, stored_record in records.items():
+            record = json.loads(stored_record)
+            expected_digest = hashlib.sha256(_canonical({k: v for k, v in record.items() if k != "ledger_hash"}).encode("utf-8")).hexdigest()
+            event_digest, event_hash = latest[record_id]
+            if expected_digest != event_digest:
+                return {"valid": False, "checked": count, "reason": "record_digest_mismatch"}
+            if record.get("ledger_hash") != event_hash:
+                return {"valid": False, "checked": count, "reason": "ledger_hash_mismatch"}
         return {"valid": True, "checked": count, "reason": "chain_valid"}
 
 
@@ -200,7 +222,6 @@ class ATCPlanner:
             "execution_status": "NOT_EXECUTED", "evidence_status": "NOT_COLLECTED", "status": "DRAFT_PLAN",
         }
         record["ledger_hash"] = self.ledger.record(record)
-        self.ledger.update_record(record)
         return record
 
     def enqueue_plan(self, queue, record: dict[str, Any]) -> list[str]:
