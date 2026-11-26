@@ -62,7 +62,14 @@ class GovernedSelfBuildRuntimeV3:
             raise PermissionError("explicit_unencrypted_storage_acknowledgement_required")
         if self.b2b_adapter is None:
             raise RuntimeError("pinned_advait_b2b_submodule_unavailable")
-        return self.b2b_adapter.stage_csv(content, allow_unencrypted_storage=True)
+        staged = self.b2b_adapter.stage_csv(
+            content, allow_unencrypted_storage=True
+        )
+        return {
+            **staged,
+            "owner_consent_recorded": True,
+            "unencrypted_storage_acknowledged": True,
+        }
 
     def enqueue_b2b_reconciliation(
         self, input_artifact_id: str, *, owner_confirmed: bool = False,
@@ -81,6 +88,8 @@ class GovernedSelfBuildRuntimeV3:
             "estimated_cost": 0,
             "free_quota_available": True,
             "risk": "low",
+            "owner_confirmation_recorded": True,
+            "unencrypted_storage_acknowledged": True,
             "input": {"input_artifact_id": input_artifact_id},
         }
         return self.queue.enqueue(title, payload)
