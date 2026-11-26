@@ -111,6 +111,8 @@ class B2BAdapterVaultTests(unittest.TestCase):
             staged = runtime.stage_b2b_csv(
                 SOURCE, owner_consented=True, allow_unencrypted_storage=True
             )
+            self.assertTrue(staged["owner_consent_recorded"])
+            self.assertTrue(staged["unencrypted_storage_acknowledged"])
             with self.assertRaises(PermissionError):
                 runtime.enqueue_b2b_reconciliation(staged["artifact_id"])
 
@@ -125,6 +127,8 @@ class B2BAdapterVaultTests(unittest.TestCase):
             self.assertNotIn("PRIVATE_VENDOR", task["payload"])
             payload = json.loads(task["payload"])
             self.assertEqual(payload["input"], {"input_artifact_id": staged["artifact_id"]})
+            self.assertTrue(payload["owner_confirmation_recorded"])
+            self.assertTrue(payload["unencrypted_storage_acknowledged"])
             outcome = runtime.run_once()
             self.assertEqual(outcome["status"], "done")
             completed = next(item for item in runtime.queue.list_tasks() if item["id"] == task_id)
