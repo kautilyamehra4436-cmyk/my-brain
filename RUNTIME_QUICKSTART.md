@@ -25,7 +25,15 @@ task_id = q.enqueue("Check a public README", {"url": "https://example.org"})
 task = q.claim_next()
 if task:
     # This queue does not execute task payloads; a human/worker must handle them.
-    q.complete(task["id"], {"note": "handled manually"})
+    # Completion requires explicit evidence and an independent verifier.
+    q.complete(
+        task["id"],
+        {"note": "handled manually"},
+        evidence={"fixture": "manual-example", "acceptance": "checked"},
+        verifier=lambda task_id, result, evidence: (
+            task_id == task["id"] and evidence.get("acceptance") == "checked"
+        ),
+    )
 print(q.list_tasks())
 print(q.audit_events())
 ```
