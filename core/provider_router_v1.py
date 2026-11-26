@@ -188,7 +188,7 @@ class ProviderRouterV1:
             raise ProviderPolicyError("openrouter_paid_model_blocked_or_invalid_model")
         return model
 
-    def call(self, *, provider, model, messages, temperature=0.2, max_tokens=1200):
+    def call(self, *, provider, model, messages, temperature=0.2, max_tokens=1200, reasoning_enabled=None):
         model = self._validate(provider, model)
         if not isinstance(messages, list) or not messages or len(messages) > self.policy["max_messages"]:
             raise ValueError("messages must be a non-empty bounded list")
@@ -204,12 +204,16 @@ class ProviderRouterV1:
             raise ValueError("invalid temperature")
         if isinstance(max_tokens, bool) or not isinstance(max_tokens, int) or not 1 <= max_tokens <= self.policy["max_tokens"]:
             raise ValueError("invalid max_tokens")
+        if reasoning_enabled is not None and not isinstance(reasoning_enabled, bool):
+            raise ValueError("invalid reasoning_enabled")
         body = {
             "model": model,
             "messages": messages,
             "temperature": float(temperature),
             "max_tokens": max_tokens,
         }
+        if reasoning_enabled is not None:
+            body["reasoning"] = {"enabled": reasoning_enabled}
         encoded = _canonical(body).encode("utf-8")
         if len(encoded) > self.policy["max_request_bytes"]:
             raise ValueError("provider_request_too_large")
