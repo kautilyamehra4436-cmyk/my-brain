@@ -58,6 +58,7 @@ class WorkspaceLedger:
             con.execute(
                 """CREATE TABLE IF NOT EXISTS workspace_records (
                     record_id TEXT PRIMARY KEY,
+                    owner_id TEXT NOT NULL,
                     owner_role TEXT NOT NULL CHECK(owner_role IN ('owner','agent')),
                     visibility TEXT NOT NULL CHECK(visibility IN ('shared','private')),
                     kind TEXT NOT NULL,
@@ -70,6 +71,9 @@ class WorkspaceLedger:
                     created_at REAL NOT NULL
                 )"""
             )
+            columns = {row[1] for row in con.execute("PRAGMA table_info(workspace_records)")}
+            if "owner_id" not in columns:
+                con.execute("ALTER TABLE workspace_records ADD COLUMN owner_id TEXT NOT NULL DEFAULT ''")
             con.execute(
                 """CREATE TABLE IF NOT EXISTS workspace_audit (
                     event_id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -152,10 +156,10 @@ class WorkspaceLedger:
             con.execute("BEGIN IMMEDIATE")
             con.execute(
                 """INSERT INTO workspace_records
-                   (record_id,owner_role,visibility,kind,title,body,source_ref,
+                   (record_id,owner_id,owner_role,visibility,kind,title,body,source_ref,
                     evidence_ref,task_id,content_sha256,created_at)
-                   VALUES(?,?,?,?,?,?,?,?,?,?,?)""",
-                (record_id, role, visibility, kind, title, body,
+                   VALUES(?,?,?,?,?,?,?,?,?,?,?,?)""",
+                (record_id, actor_id, role, visibility, kind, title, body,
                  optional["source_ref"], optional["evidence_ref"], optional["task_id"],
                  digest, created_at),
             )
@@ -174,7 +178,8 @@ class WorkspaceLedger:
         offset = max(0, int(offset))
         clauses, args = [], []
         if role == "agent":
-            clauses.append("(visibility='shared' OR owner_role='agent')")
+            clauses.append("(visibility='shared' OR owner_id=?)")
+            args.append(actor_id)
         if kind is not None:
             clauses.append("kind=?")
             args.append(kind)
@@ -204,7 +209,7 @@ class WorkspaceLedger:
             ).fetchone()
             if row is None:
                 return None
-            if role == "agent" and row["owner_role"] == "owner" and row["visibility"] != "shared":
+            if role == "agent" and row["visibility"] != "shared" and row["owner_id"] != actor_id:
                 self._audit(con, actor_id, role, "record_access_denied", record_id, {})
                 return None
             self._audit(con, actor_id, role, "record_read", record_id, {})
