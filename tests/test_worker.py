@@ -89,7 +89,7 @@ class BoundedWorkerTests(unittest.TestCase):
         task_id = self.enqueue(risk="high")
         outcome = self.worker().run_once()
         self.assertEqual(outcome["status"], "failed")
-        self.assertIn("owner verifier unavailable", outcome["reason"])
+        self.assertEqual(outcome["reason"], "owner_verifier_unavailable")
         self.assertEqual(self.queue.list_tasks(status="failed")[0]["id"], task_id)
 
     def test_high_risk_requires_out_of_band_owner_approval(self):
@@ -110,7 +110,7 @@ class BoundedWorkerTests(unittest.TestCase):
         task_id = self.enqueue()
         outcome = self.worker(evidence_verifier=None).run_once()
         self.assertEqual(outcome["status"], "failed")
-        self.assertIn("evidence verifier unavailable", outcome["reason"])
+        self.assertEqual(outcome["reason"], "evidence_verifier_unavailable")
         self.assertEqual(self.queue.list_tasks(status="failed")[0]["id"], task_id)
 
     def test_handler_exception_message_is_not_persisted(self):
@@ -150,7 +150,26 @@ class BoundedWorkerTests(unittest.TestCase):
         self.assertEqual(outcome["status"], "failed")
         failed = self.queue.list_tasks(status="failed")[0]
         self.assertNotIn("legacy-persisted-token", failed["error"])
+        self.assertEqual(json.loads(failed["payload"]), {})
         self.assertNotIn("legacy-persisted-token", str(self.queue.audit_events()))
+
+    def test_sensitive_handler_result_is_not_persisted(self):
+        task_id = self.enqueue()
+        worker = BoundedWorker(
+            self.queue,
+            {"fixture.echo": lambda _: {
+                "result": {"api_key": "SECRET_VALUE"},
+                "evidence": {"fixture": "synthetic", "expected_value": "verified"},
+            }},
+            evidence_verifier=accepted,
+        )
+        outcome = worker.run_once()
+        self.assertEqual(outcome["status"], "failed")
+        self.assertEqual(outcome["reason"], "sensitive_output_blocked")
+        failed = self.queue.list_tasks(status="failed")[0]
+        self.assertEqual(failed["id"], task_id)
+        self.assertIsNone(failed["result"])
+        self.assertNotIn("SECRET_VALUE", str(self.queue.audit_events()))
 
     def test_task_failure_error_is_sanitized(self):
         task_id = self.enqueue()
