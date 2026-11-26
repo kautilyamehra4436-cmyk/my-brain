@@ -22,9 +22,12 @@ Add `--enqueue` only to store plan-only steps in the existing queue; it does not
 - `tests/test_worker.py`: synthetic worker lifecycle, allowlist, cost/quota, approval and evidence-gate tests.
 - `core/zero_cost_guard.py`: fail-closed helper for cost/quota/sensitive-action checks.
 - `core/task_queue.py`: local SQLite task queue and audit log; it stores/claims tasks but does not execute payloads by itself.
-- `core/worker.py`: bounded worker v0.1 (branch/PR pending); executes only explicitly marked tasks through host-registered handlers, with zero-cost, approval and evidence-verification gates. No default external adapters are shipped.
+- `core/worker.py`: bounded worker v0.1; executes only explicitly marked tasks through host-registered handlers, with zero-cost, approval and evidence-verification gates. No default external adapters are shipped.
+- `core/workspace_ledger.py`: append-only SQLite workspace-record foundation; role-scoped search, source/evidence references and audit events. Requires a trusted host-injected identity resolver; it is not an authentication server or a deployed API.
+- `tests/test_workspace_ledger.py`: tests owner/agent visibility, private-record isolation, append-only triggers and audit controls.
 - `core/atc_planner.py`: ATC Thinking/Planning Core v1.2, merged to main; rule-based draft plans, risk flags, heuristic strategy comparison, SQLite integrity ledger. No LLM, web research or task execution.
 - ATC integration map/FIR: `docs/ATC_INTEGRATION_MAP.md`, `docs/ATC_FIR_v1.2.md`.
+- Dual workspace integration checkpoint: `docs/DUAL_WORKSPACE_V0.2.md`. UI and ledger foundation are separate; API/authentication and UI-to-ledger connection remain pending.
 - GitHub Actions run #72: 38/38 tests passed (26 planner + 7 runtime + 5 handoff) and compile checks. Android/Termux and 24-hour stability remain untested.
 
 ## 🔌 Integrations

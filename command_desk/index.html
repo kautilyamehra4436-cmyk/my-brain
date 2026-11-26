@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="hi">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#101827"><title>Advait Command Desk</title>
+<style>
+:root{color-scheme:dark;--bg:#0b1220;--panel:#121e30;--line:#26364d;--ink:#edf4ff;--muted:#9aacc4;--accent:#65d6b0;--warn:#f4c56a}
+*{box-sizing:border-box}body{margin:0;background:linear-gradient(160deg,#111e31,#09111e 60%);color:var(--ink);font:16px system-ui,-apple-system,Segoe UI,sans-serif;min-height:100vh}
+main{max-width:900px;margin:auto;padding:20px 16px 44px}.top{display:flex;justify-content:space-between;align-items:center;gap:12px}.brand{font-weight:800;font-size:22px;letter-spacing:.3px}.sub,.muted{color:var(--muted);font-size:13px}.pill{border:1px solid #286b5a;color:var(--accent);padding:6px 10px;border-radius:99px;font-size:12px}
+h1{font-size:25px;margin:28px 0 6px}.lead{color:var(--muted);margin:0 0 18px}.searchwrap{position:relative}.search{width:100%;padding:17px 16px;border-radius:15px;border:1px solid #38516e;background:#0c1727;color:var(--ink);font-size:17px;outline:none}.search:focus,textarea:focus,input:focus,select:focus{border-color:var(--accent);box-shadow:0 0 0 2px #65d6b022}
+.filters,.actions{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0}.btn,select{background:#1a2a40;color:var(--ink);border:1px solid var(--line);border-radius:10px;padding:10px 13px;font-size:14px}.btn.primary{background:#145b4b;border-color:#257b65}.btn:active{transform:scale(.98)}
+.panel{background:#111d2e;border:1px solid var(--line);border-radius:16px;padding:15px;margin-top:14px}.panel h2{font-size:16px;margin:0 0 12px}.row{display:grid;grid-template-columns:1fr 1fr;gap:10px}.field{width:100%;padding:12px;border-radius:10px;background:#0b1727;border:1px solid var(--line);color:var(--ink);font:inherit}textarea.field{min-height:105px;resize:vertical}.results{display:grid;gap:10px;margin-top:12px}.item{padding:14px;background:#111d2e;border:1px solid var(--line);border-radius:13px}.itemtop{display:flex;justify-content:space-between;gap:8px}.tag{font-size:11px;color:var(--accent);text-transform:uppercase}.item h3{font-size:15px;margin:7px 0}.item p{font-size:13px;color:var(--muted);white-space:pre-wrap;overflow-wrap:anywhere;margin:0}.empty{padding:22px;text-align:center;color:var(--muted);border:1px dashed #354962;border-radius:13px}.hidden{display:none!important}.foot{margin-top:22px;color:var(--muted);font-size:12px;line-height:1.6}
+@media(max-width:560px){.row{grid-template-columns:1fr}.top{align-items:flex-start}}
+</style></head>
+<body><main>
+<header class="top"><div><div class="brand">✦ ADVAIT <span class="muted">/ COMMAND DESK</span></div><div class="sub">Search · Work · Learn · Remember</div></div><span class="pill">LOCAL-FIRST v0.1</span></header>
+<h1>Boss, yahin se shuru karein.</h1><p class="lead">Purane records khojein, naya kaam likhein, aur reports ko ek jagah sambhalein.</p>
+<div class="searchwrap"><input id="q" class="search" type="search" placeholder="Search: report, task, module, decision…" autocomplete="off" aria-label="Advait records search"></div>
+<div class="filters" id="filters"><button class="btn primary" data-kind="all">All</button><button class="btn" data-kind="command">Commands</button><button class="btn" data-kind="task">Tasks</button><button class="btn" data-kind="report">Reports</button><button class="btn" data-kind="learning">Learnings</button></div>
+<section class="panel"><h2> नया रिकॉर्ड / New record</h2>
+<div class="row"><select id="kind" class="field" aria-label="Record type"><option value="command">Command / निर्देश</option><option value="task">Task / काम</option><option value="report">Report / रिपोर्ट</option><option value="learning">Learning / सीख</option></select><input id="title" class="field" maxlength="140" placeholder="Title / काम का नाम"></div>
+<textarea id="body" class="field" style="margin-top:10px" placeholder="विवरण, परिणाम, प्रमाण या अगला कदम लिखें…"></textarea>
+<input id="tags" class="field" style="margin-top:10px" placeholder="Tags (comma separated)"><div class="actions"><button id="save" class="btn primary">Save record</button><button id="clear" class="btn">Clear</button><button id="export" class="btn">Export backup</button><label class="btn" for="import">Import backup</label><input id="import" type="file" accept="application/json,.json" class="hidden"></div><div id="notice" class="muted" role="status">Records are stored in this browser on this device.</div></section>
+<section class="panel"><div class="itemtop"><h2>Saved records</h2><span class="muted" id="count">0 records</span></div><div id="results" class="results"><div class="empty">Abhi koi record saved nahi hai. Pehla report ya command yahan save karein.</div></div></section>
+<p class="foot">Privacy & control: records stay in this browser's IndexedDB until you export/delete browser data. This v0.1 does not connect to a remote Brain database or execute commands. Never save passwords, API keys, bank details, or private legal/financial credentials here. Owner approval remains mandatory for external, sensitive, and money actions.</p>
+</main>
+<script>
+(()=>{'use strict';
+const DB='advait_command_desk',STORE='records';let db,active='all',records=[];
+const $=id=>document.getElementById(id);
+function note(s){$('notice').textContent=s}
+function openDB(){return new Promise((resolve,reject)=>{const req=indexedDB.open(DB,1);req.onupgradeneeded=()=>{const d=req.result;if(!d.objectStoreNames.contains(STORE)){const st=d.createObjectStore(STORE,{keyPath:'id'});st.createIndex('createdAt','createdAt')}};req.onsuccess=()=>resolve(req.result);req.onerror=()=>reject(req.error)})}
+function all(){return new Promise((resolve,reject)=>{const tx=db.transaction(STORE,'readonly'),r=tx.objectStore(STORE).getAll();r.onsuccess=()=>resolve(r.result.sort((a,b)=>b.createdAt-a.createdAt));r.onerror=()=>reject(r.error)})}
+function put(v){return new Promise((resolve,reject)=>{const tx=db.transaction(STORE,'readwrite');tx.objectStore(STORE).put(v);tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error)})}
+function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+function render(){const q=$('q').value.trim().toLowerCase();const list=records.filter(r=>(active==='all'||r.kind===active)&&(!q||[r.title,r.body,(r.tags||[]).join(' '),r.kind].join(' ').toLowerCase().includes(q)));$('count').textContent=list.length+' / '+records.length+' records';$('results').innerHTML=list.length?list.map(r=>'<article class="item"><div class="itemtop"><span class="tag">'+esc(r.kind)+'</span><span class="muted">'+new Date(r.createdAt).toLocaleString()+'</span></div><h3>'+esc(r.title)+'</h3><p>'+esc(r.body)+'</p><div class="muted" style="margin-top:8px">'+esc((r.tags||[]).join(' · '))+'</div></article>').join(''):'<div class="empty">Is search/filter mein koi record nahi mila.</div>'}
+async function refresh(){records=await all();render()}
+$('save').onclick=async()=>{const title=$('title').value.trim(),body=$('body').value.trim();if(!title||!body){note('Title aur details dono likhein.');return}const r={id:crypto.randomUUID?crypto.randomUUID():String(Date.now())+'-'+Math.random().toString(16).slice(2),kind:$('kind').value,title,body,tags:$('tags').value.split(',').map(x=>x.trim()).filter(Boolean),createdAt:Date.now(),schemaVersion:1};try{await put(r);$('title').value='';$('body').value='';$('tags').value='';await refresh();note('Saved on this device. Export backup regularly.')}catch(e){note('Save failed: '+e.message)}};
+$('clear').onclick=()=>{$('title').value='';$('body').value='';$('tags').value='';note('Form cleared.')};
+$('q').oninput=render;
+$('filters').onclick=e=>{const b=e.target.closest('button[data-kind]');if(!b)return;active=b.dataset.kind;document.querySelectorAll('#filters button').forEach(x=>x.classList.toggle('primary',x===b));render()};
+$('export').onclick=()=>{const blob=new Blob([JSON.stringify({app:'Advait Command Desk',schemaVersion:1,exportedAt:new Date().toISOString(),records},null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='advait-command-desk-backup.json';a.click();URL.revokeObjectURL(a.href);note('Backup exported. Keep a second copy in a safe place.')};
+$('import').onchange=async e=>{const f=e.target.files[0];if(!f)return;try{const data=JSON.parse(await f.text());if(!data||!Array.isArray(data.records)||data.records.some(r=>!r.id||!r.title||!r.kind))throw Error('Invalid backup format');for(const r of data.records)await put(r);await refresh();note(data.records.length+' records imported. Existing IDs updated; other records retained.')}catch(err){note('Import failed: '+err.message)}e.target.value=''};
+document.addEventListener('keydown',e=>{if(e.key==='/'&&!['INPUT','TEXTAREA'].includes(document.activeElement.tagName)){e.preventDefault();$('q').focus()}});
+openDB().then(async d=>{db=d;await refresh()}).catch(e=>note('Storage unavailable: '+e.message));
+})();
+</script></body></html>
