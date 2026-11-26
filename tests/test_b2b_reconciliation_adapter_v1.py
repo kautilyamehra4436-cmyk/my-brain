@@ -106,14 +106,18 @@ class B2BAdapterVaultTests(unittest.TestCase):
             runtime = GovernedSelfBuildRuntimeV3(tmp, b2b_reconciler=fake_reconciler)
             with self.assertRaises(PermissionError):
                 runtime.stage_b2b_csv(SOURCE)
-            staged = runtime.stage_b2b_csv(SOURCE, owner_consented=True)
+            with self.assertRaises(PermissionError):
+                runtime.stage_b2b_csv(SOURCE, owner_consented=True)
+            staged = runtime.stage_b2b_csv(
+                SOURCE, owner_consented=True, allow_unencrypted_storage=True
+            )
             with self.assertRaises(PermissionError):
                 runtime.enqueue_b2b_reconciliation(staged["artifact_id"])
 
     def test_queue_and_result_do_not_contain_financial_source_rows(self):
         with tempfile.TemporaryDirectory() as tmp:
             runtime = GovernedSelfBuildRuntimeV3(tmp, b2b_reconciler=fake_reconciler)
-            staged = runtime.stage_b2b_csv(SOURCE, owner_consented=True)
+            staged = runtime.stage_b2b_csv(SOURCE, owner_consented=True, allow_unencrypted_storage=True)
             task_id = runtime.enqueue_b2b_reconciliation(
                 staged["artifact_id"], owner_confirmed=True
             )
