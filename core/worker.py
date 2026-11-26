@@ -12,6 +12,7 @@ import uuid
 from typing import Any, Callable
 
 from core.zero_cost_guard import evaluate as zero_cost_evaluate
+from core.task_queue import contains_sensitive_material
 
 
 class BoundedWorker:
@@ -24,7 +25,7 @@ class BoundedWorker:
       estimated_cost: explicit numeric zero for the current hard-₹0 runtime
       free_quota_available: boolean
       risk: "low" | "high" | "critical"
-      approval_token: optional opaque token; never logged by this worker
+      no credentials, approval tokens, API keys or passwords; the queue rejects these
       input: handler-specific JSON object
 
     Handler contract:
@@ -41,7 +42,7 @@ class BoundedWorker:
         handlers: dict[str, Callable[[dict[str, Any]], dict[str, Any]]],
         *,
         evidence_verifier: Callable[[str, dict, dict], bool] | None,
-        owner_approval_verifier: Callable[[str, str, dict, str], bool] | None = None,
+        owner_approval_verifier: Callable[[str, str, dict], bool] | None = None,
         max_output_bytes: int = 65536,
         worker_id: str | None = None,
         lease_seconds: float = 300.0,
@@ -76,6 +77,31 @@ class BoundedWorker:
             separators=(",", ":"), allow_nan=False,
         ).encode("utf-8")
 
+    @staticmethod
+    def _safe_reason(exc: Exception) -> str:
+        message = str(exc)
+        permission_codes = {
+            "authenticated exact-action owner verifier unavailable": "owner_verifier_unavailable",
+            "exact-action owner approval rejected": "owner_approval_rejected",
+            "independent evidence verifier unavailable": "evidence_verifier_unavailable",
+            "independent evidence verification failed; task remains running": "evidence_verification_failed",
+            "sensitive_task_payload_blocked": "sensitive_task_payload_blocked",
+            "unknown risk; fail closed": "unknown_risk",
+        }
+        value_codes = {
+            "sensitive_material_must_not_be_persisted": "sensitive_output_blocked",
+            "handler output exceeds configured byte limit": "handler_output_too_large",
+            "handler must return exactly result and evidence objects": "invalid_handler_output",
+            "result and evidence must be JSON objects": "invalid_handler_output",
+            "handler input must be a JSON object": "invalid_handler_input",
+            "free_quota_available must be boolean": "invalid_quota_state",
+        }
+        if isinstance(exc, PermissionError):
+            return permission_codes.get(message, "permission_denied")
+        if isinstance(exc, ValueError):
+            return value_codes.get(message, "invalid_task_or_handler_output")
+        return f"{type(exc).__name__.lower()}_execution_failed"
+
     def run_once(self) -> dict[str, Any]:
         """Run one eligible task; never executes plan-only queue records."""
         if self.lease_aware:
@@ -91,6 +117,8 @@ class BoundedWorker:
         task_id = task["id"]
         payload = task["payload"]
         try:
+            if contains_sensitive_material(payload):
+                raise PermissionError("sensitive_task_payload_blocked")
             required = ("adapter", "action", "estimated_cost", "free_quota_available", "risk", "input")
             missing = [key for key in required if key not in payload]
             if missing:
@@ -114,11 +142,11 @@ class BoundedWorker:
             if risk in ("high", "critical"):
                 if not callable(self.owner_approval_verifier):
                     raise PermissionError("authenticated exact-action owner verifier unavailable")
-                approval_token = payload.get("approval_token", "")
-                safe_payload = {k: v for k, v in payload.items() if k != "approval_token"}
+                # Approval proof must be fetched by the trusted verifier out-of-band.
+                # It must never be persisted in the operational task queue.
                 try:
                     approved = bool(self.owner_approval_verifier(
-                        task_id, payload["action"], safe_payload, approval_token
+                        task_id, payload["action"], payload
                     ))
                 except Exception:
                     approved = False
@@ -150,7 +178,7 @@ class BoundedWorker:
             self.queue.complete(task_id, output["result"], **completion)
             return {"status": "done", "task_id": task_id, "verified": True}
         except Exception as exc:
-            reason = f"{type(exc).__name__}: {exc}"
+            reason = self._safe_reason(exc)
             try:
                 if self.lease_aware:
                     self.queue.fail(task_id, reason, worker_id=self.worker_id)
@@ -161,7 +189,7 @@ class BoundedWorker:
                     return {
                         "status": "lease_lost", "task_id": task_id,
                         "reason": reason,
-                        "lease_error": f"{type(lease_exc).__name__}: {lease_exc}",
+                        "lease_error": "lease_state_changed_or_unavailable",
                     }
                 raise
             return {"status": "failed", "task_id": task_id, "reason": reason}

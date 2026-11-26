@@ -1,14 +1,68 @@
 """SQLite task queue with evidence-gated completion and audit metadata."""
 import hashlib
 import json
+import re
+import sqlite3
 import time
 import uuid
 
 from core.managed_sqlite_v1 import managed_connection
 
 
+MAX_TASK_PAYLOAD_BYTES = 65_536
+MAX_TASK_RESULT_BYTES = 65_536
+MAX_TASK_TITLE_CHARS = 200
+SENSITIVE_KEYS = {
+    "approval_token", "owner_token", "api_key", "secret", "password", "token",
+    "authorization", "credential", "credentials", "access_token", "access_key",
+    "refresh_token", "private_key", "webhook_secret", "client_secret",
+    "secret_access_key", "secret_key", "signing_key",
+}
+SENSITIVE_SUFFIXES = (
+    "_token", "_secret", "_password", "_credential", "_private_key",
+    "_api_key", "_access_key", "_signing_key",
+)
+SENSITIVE_TEXT = re.compile(
+    r"(?:\bBearer\s+[A-Za-z0-9._~+/=-]{12,}|-----BEGIN [A-Z ]*PRIVATE KEY-----|"
+    r"(?:api[_-]?key|password|secret|authorization)\s*[:=]\s*\S+|"
+    r"\b(?:sk-[A-Za-z0-9_-]{16,}|ghp_[A-Za-z0-9]{20,}|github_pat_[A-Za-z0-9_]{20,}|AKIA[A-Z0-9]{16})\b)",
+    re.IGNORECASE,
+)
+
+
 def _canonical(value):
     return json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(",", ":"), allow_nan=False)
+
+
+def contains_sensitive_material(value, *, depth=0):
+    """Conservative recursive key-name check; task queues must not store credentials."""
+    if depth > 12:
+        return True
+    if isinstance(value, dict):
+        if len(value) > 500:
+            return True
+        for key, item in value.items():
+            if not isinstance(key, str):
+                return True
+            normalized = key.strip().casefold().replace("-", "_").replace(" ", "_")
+            if normalized in SENSITIVE_KEYS or any(normalized.endswith(suffix) for suffix in SENSITIVE_SUFFIXES):
+                return True
+            if contains_sensitive_material(item, depth=depth + 1):
+                return True
+    elif isinstance(value, list):
+        if len(value) > 1000:
+            return True
+        return any(contains_sensitive_material(item, depth=depth + 1) for item in value)
+    elif isinstance(value, str):
+        return bool(SENSITIVE_TEXT.search(value))
+    return False
+
+
+def _safe_error_code(error):
+    value = str(error).strip()
+    if re.fullmatch(r"[a-z][a-z0-9_]{0,79}", value) and not SENSITIVE_TEXT.search(value):
+        return value
+    return "task_failed"
 
 
 class TaskQueue:
@@ -46,18 +100,33 @@ class TaskQueue:
         )
 
     def enqueue(self, title, payload=None):
-        if not str(title).strip():
+        title_text = str(title).strip()
+        if not title_text:
             raise ValueError("Task title cannot be blank")
+        if len(title_text) > MAX_TASK_TITLE_CHARS:
+            raise ValueError("task_title_too_long")
+        if SENSITIVE_TEXT.search(title_text):
+            raise ValueError("sensitive_material_must_not_be_persisted")
+        task_payload = payload if payload is not None else {}
+        if not isinstance(task_payload, dict):
+            raise ValueError("task_payload_must_be_object")
+        if contains_sensitive_material(task_payload):
+            raise ValueError("sensitive_material_must_not_be_persisted")
+        try:
+            data = _canonical(task_payload)
+        except (TypeError, ValueError):
+            raise ValueError("task_payload_must_be_json") from None
+        if len(data.encode("utf-8")) > MAX_TASK_PAYLOAD_BYTES:
+            raise ValueError("task_payload_too_large")
         task_id, now = str(uuid.uuid4()), time.time()
-        data = _canonical(payload if payload is not None else {})
         with self._connect() as con:
             con.execute(
                 "INSERT INTO tasks "
                 "(id,title,payload,status,created_at,updated_at,result,error,evidence_sha256) "
                 "VALUES(?,?,?,?,?,?,?,?,?)",
-                (task_id, title.strip(), data, "pending", now, now, None, None, None),
+                (task_id, title_text, data, "pending", now, now, None, None, None),
             )
-            self._audit(con, "enqueue", task_id, {"title": title.strip()})
+            self._audit(con, "enqueue", task_id, {"title": title_text})
         return task_id
 
     def list_tasks(self, status=None):
@@ -140,8 +209,17 @@ class TaskQueue:
             raise PermissionError("independent evidence verifier unavailable; fail-closed")
         if evidence is None:
             raise ValueError("verification evidence is required")
-        result_json = _canonical(result if result is not None else {})
+        safe_result = result if result is not None else {}
+        if not isinstance(safe_result, dict) or not isinstance(evidence, dict):
+            raise ValueError("result_and_evidence_must_be_objects")
+        if contains_sensitive_material(safe_result) or contains_sensitive_material(evidence):
+            raise ValueError("sensitive_material_must_not_be_persisted")
+        result_json = _canonical(safe_result)
         evidence_json = _canonical(evidence)
+        if len(result_json.encode("utf-8")) > MAX_TASK_RESULT_BYTES:
+            raise ValueError("task_result_too_large")
+        if len(evidence_json.encode("utf-8")) > MAX_TASK_RESULT_BYTES:
+            raise ValueError("task_evidence_too_large")
         try:
             verified = bool(verifier(task_id, json.loads(result_json), json.loads(evidence_json)))
         except Exception:
@@ -183,24 +261,46 @@ class TaskQueue:
         ):
             raise PermissionError("invalid_lease_owner")
         now = time.time()
+        safe_error = _safe_error_code(error)
+        scrub_payload = safe_error == "sensitive_task_payload_blocked"
         with self._connect() as con:
             if worker_id is None:
-                cur = con.execute(
-                    "UPDATE tasks SET status='failed',updated_at=?,error=? "
-                    "WHERE id=? AND status='running'",
-                    (now, str(error), task_id),
+                if scrub_payload:
+                    cur = con.execute(
+                        "UPDATE tasks SET status='failed',updated_at=?,error=?,payload='{}' "
+                        "WHERE id=? AND status='running'",
+                        (now, safe_error, task_id),
+                    )
+                else:
+                    cur = con.execute(
+                        "UPDATE tasks SET status='failed',updated_at=?,error=? "
+                        "WHERE id=? AND status='running'",
+                        (now, safe_error, task_id),
                 )
             else:
-                cur = con.execute(
-                    "UPDATE tasks SET status='failed',updated_at=?,error=? "
-                    "WHERE id=? AND status='running' AND lease_owner=? AND lease_expires_at>?",
-                    (now, str(error), task_id, worker_id, now),
-                )
+                if scrub_payload:
+                    cur = con.execute(
+                        "UPDATE tasks SET status='failed',updated_at=?,error=?,payload='{}' "
+                        "WHERE id=? AND status='running' AND lease_owner=? AND lease_expires_at>?",
+                        (now, safe_error, task_id, worker_id, now),
+                    )
+                else:
+                    cur = con.execute(
+                        "UPDATE tasks SET status='failed',updated_at=?,error=? "
+                        "WHERE id=? AND status='running' AND lease_owner=? AND lease_expires_at>?",
+                        (now, safe_error, task_id, worker_id, now),
+                    )
             if cur.rowcount != 1:
                 if worker_id is not None:
                     raise PermissionError("task_lease_lost_or_expired")
                 raise ValueError("Task not found or not running")
-            self._audit(con, "fail", task_id, {"error": str(error)})
+            self._audit(con, "fail", task_id, {"error": safe_error})
+        if scrub_payload:
+            try:
+                with self._connect() as con:
+                    con.execute("PRAGMA wal_checkpoint(TRUNCATE)")
+            except sqlite3.Error:
+                pass
 
     def audit_events(self):
         with self._connect() as con:

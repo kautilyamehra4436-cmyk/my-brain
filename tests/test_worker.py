@@ -1,5 +1,7 @@
+import json
 import tempfile
 import unittest
+from core.managed_sqlite_v1 import managed_connection
 from pathlib import Path
 
 from core.task_queue import TaskQueue
@@ -87,36 +89,94 @@ class BoundedWorkerTests(unittest.TestCase):
         task_id = self.enqueue(risk="high")
         outcome = self.worker().run_once()
         self.assertEqual(outcome["status"], "failed")
-        self.assertIn("owner verifier unavailable", outcome["reason"])
+        self.assertEqual(outcome["reason"], "owner_verifier_unavailable")
         self.assertEqual(self.queue.list_tasks(status="failed")[0]["id"], task_id)
 
-    def test_high_risk_requires_exact_owner_approval(self):
-        task_id = self.enqueue(risk="high", approval_token="fixture-approval")
+    def test_high_risk_requires_out_of_band_owner_approval(self):
+        task_id = self.enqueue(risk="high")
         owner_calls = []
-        worker = self.worker(owner_approval_verifier=lambda tid, action, payload, token: (
-            owner_calls.append((tid, action, token))
-            or (tid == task_id and action == "local_analysis" and token == "fixture-approval")
+        worker = self.worker(owner_approval_verifier=lambda tid, action, payload: (
+            owner_calls.append((tid, action, payload))
+            or (tid == task_id and action == "local_analysis"
+                and "approval_token" not in payload)
         ))
         outcome = worker.run_once()
         self.assertEqual(outcome["status"], "done")
-        self.assertEqual(owner_calls, [(task_id, "local_analysis", "fixture-approval")])
+        self.assertEqual(owner_calls[0][0:2], (task_id, "local_analysis"))
+        self.assertNotIn("approval_token", owner_calls[0][2])
         self.assertEqual(self.queue.list_tasks(status="done")[0]["id"], task_id)
 
     def test_missing_independent_verifier_fails_closed(self):
         task_id = self.enqueue()
         outcome = self.worker(evidence_verifier=None).run_once()
         self.assertEqual(outcome["status"], "failed")
-        self.assertIn("evidence verifier unavailable", outcome["reason"])
+        self.assertEqual(outcome["reason"], "evidence_verifier_unavailable")
         self.assertEqual(self.queue.list_tasks(status="failed")[0]["id"], task_id)
 
-    def test_handler_exception_is_recorded_as_failure(self):
+    def test_handler_exception_message_is_not_persisted(self):
         task_id = self.enqueue()
         worker = BoundedWorker(
             self.queue,
-            {"fixture.echo": lambda _: (_ for _ in ()).throw(RuntimeError("fixture failure"))},
+            {"fixture.echo": lambda _: (_ for _ in ()).throw(RuntimeError("SECRET customer-row data"))},
             evidence_verifier=accepted,
         )
         outcome = worker.run_once()
         self.assertEqual(outcome["status"], "failed")
-        self.assertIn("fixture failure", outcome["reason"])
-        self.assertEqual(self.queue.list_tasks(status="failed")[0]["id"], task_id)
+        self.assertEqual(outcome["reason"], "runtimeerror_execution_failed")
+        failed = self.queue.list_tasks(status="failed")[0]
+        self.assertEqual(failed["id"], task_id)
+        self.assertNotIn("SECRET", failed["error"])
+        self.assertNotIn("customer-row", failed["error"])
+        self.assertNotIn("SECRET", str(self.queue.audit_events()))
+
+    def test_enqueue_rejects_nested_secret_material(self):
+        with self.assertRaisesRegex(ValueError, "sensitive_material"):
+            self.queue.enqueue("Unsafe task", {"input": {"approval_token": "do-not-store"}})
+        with self.assertRaisesRegex(ValueError, "sensitive_material"):
+            self.queue.enqueue("Unsafe task", {"nested": [{"API-Key": "do-not-store"}]})
+        with self.assertRaisesRegex(ValueError, "sensitive_material"):
+            self.queue.enqueue("Unsafe task", {"input": "Bearer abcdefghijklmnopqrstuvwxyz"})
+
+    def test_enqueue_rejects_oversized_payload(self):
+        with self.assertRaisesRegex(ValueError, "payload_too_large"):
+            self.queue.enqueue("Large task", {"input": "x" * 70000})
+
+    def test_legacy_sensitive_payload_fails_closed(self):
+        task_id = self.enqueue(risk="high")
+        task = self.queue.list_tasks(status="pending")[0]
+        payload = json.loads(task["payload"])
+        payload["approval_token"] = "legacy-persisted-token"
+        with managed_connection(self.queue.db_path) as con:
+            con.execute("UPDATE tasks SET payload=? WHERE id=?", (json.dumps(payload), task_id))
+        outcome = self.worker(owner_approval_verifier=lambda *_: True).run_once()
+        self.assertEqual(outcome["status"], "failed")
+        failed = self.queue.list_tasks(status="failed")[0]
+        self.assertNotIn("legacy-persisted-token", failed["error"])
+        self.assertEqual(json.loads(failed["payload"]), {})
+        self.assertNotIn("legacy-persisted-token", str(self.queue.audit_events()))
+
+    def test_sensitive_handler_result_is_not_persisted(self):
+        task_id = self.enqueue()
+        worker = BoundedWorker(
+            self.queue,
+            {"fixture.echo": lambda _: {
+                "result": {"api_key": "SECRET_VALUE"},
+                "evidence": {"fixture": "synthetic", "expected_value": "verified"},
+            }},
+            evidence_verifier=accepted,
+        )
+        outcome = worker.run_once()
+        self.assertEqual(outcome["status"], "failed")
+        self.assertEqual(outcome["reason"], "sensitive_output_blocked")
+        failed = self.queue.list_tasks(status="failed")[0]
+        self.assertEqual(failed["id"], task_id)
+        self.assertIsNone(failed["result"])
+        self.assertNotIn("SECRET_VALUE", str(self.queue.audit_events()))
+
+    def test_task_failure_error_is_sanitized(self):
+        task_id = self.enqueue()
+        self.queue.claim_next(eligible=lambda p: p.get("execution_mode") == "bounded_adapter")
+        self.queue.fail(task_id, "SECRET=customer-sensitive-value")
+        failed = self.queue.list_tasks(status="failed")[0]
+        self.assertEqual(failed["error"], "task_failed")
+        self.assertNotIn("customer-sensitive-value", str(self.queue.audit_events()))
