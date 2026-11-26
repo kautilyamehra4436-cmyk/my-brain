@@ -13,6 +13,7 @@ import re
 import time
 from types import MappingProxyType
 import urllib.error
+import urllib.parse
 import urllib.request
 import uuid
 from dataclasses import dataclass
@@ -233,6 +234,16 @@ class ProviderRouterV1:
         try:
             with urllib.request.urlopen(request, timeout=self.policy["timeout_seconds"]) as response:
                 http_status = int(response.status)
+                final_url = urllib.parse.urlparse(response.geturl())
+                if (
+                    http_status != 200
+                    or final_url.scheme != "https"
+                    or final_url.hostname != "openrouter.ai"
+                    or final_url.port not in (None, 443)
+                    or final_url.username is not None
+                    or final_url.password is not None
+                ):
+                    raise ProviderRequestError("provider_redirect_or_status_blocked")
                 raw = response.read(self.policy["max_response_bytes"] + 1)
             if len(raw) > self.policy["max_response_bytes"]:
                 raise ProviderRequestError("provider_response_too_large")
