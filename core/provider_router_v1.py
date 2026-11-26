@@ -11,6 +11,7 @@ import math
 import os
 import re
 import time
+from types import MappingProxyType
 import urllib.error
 import urllib.request
 import uuid
@@ -157,21 +158,25 @@ class ProviderRouterV1:
         timeout = requested.get("timeout_seconds", 30)
         if isinstance(timeout, bool) or not isinstance(timeout, int) or not 1 <= timeout <= 60:
             raise ProviderPolicyError("timeout_limit_out_of_bounds")
-        self.policy = {
+        self._policy = MappingProxyType({
             **DEFAULT_POLICY,
             **requested,
             "allow_paid_api": False,
             "allow_openrouter_free_only": True,
             "max_cost_usd_per_call": 0.0,
             "max_cost_usd_per_day": 0.0,
-            "allowed_providers": list(allowed),
+            "allowed_providers": tuple(allowed),
             "max_response_bytes": response_limit,
             "max_request_bytes": request_limit,
             "max_messages": message_limit,
             "max_tokens": token_limit,
             "timeout_seconds": timeout,
-        }
+        })
         self.environ = os.environ if environ is None else environ
+
+    @property
+    def policy(self):
+        return self._policy
 
     def _validate(self, provider, model):
         if provider not in ENDPOINTS:
