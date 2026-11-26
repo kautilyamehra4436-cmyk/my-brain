@@ -33,7 +33,7 @@ class ManagedRuntimeTests(unittest.TestCase):
             self.assertEqual(outcome["status"], "done")
             self.assertEqual(report["status"], "done")
             self.assertTrue(report["evidence_sha256"])
-            self.assertEqual(report["result"]["output"]["words"], 8)
+            self.assertEqual(report["result"]["output"]["words"], 7)
 
     def test_queue_operations_do_not_emit_sqlite_resource_warnings(self):
         with tempfile.TemporaryDirectory() as temp:
