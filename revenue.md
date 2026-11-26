@@ -1,14 +1,13 @@
-# 💰 5 Revenue Streams
+# Revenue Policy — Zero-Spend Baseline
+Status: policy and candidate business models; no verified revenue.
 
-| Stream | Tool | Cost | Price | Margin |
-|---|---|---|---|---|
-| Service | ChatGPT+n8n | ₹0 | ₹500 | 100% |
-| Digital | GitHub+Systeme | ₹0 | ₹199 | 100% |
-| Automation | n8n+Aeon | ₹0 | ₹2000 | 100% |
-| Agent-as-Service | 0rca | ₹0 | per-req | 100% |
-| AI Company | AgentCo | ₹0 | $10/run | 100% |
+The controlling policy is config.yml: hard_zero=true and allowed_spend=₹0. Paid APIs, hosting, subscriptions, credit, auto-renewal and automatic reinvestment are disabled. If a free quota is exhausted, pause and report; never silently switch to paid.
 
-## Cost Caps
-- Per run: ₹500 (Gate 2)
-- Per day: ₹2000
-- Per month: ₹10000
+Candidate revenue streams (not active integrations or guaranteed prices):
+- B2B data validation/reconciliation service.
+- Reusable digital templates or reports.
+- Narrow workflow automation service after feasibility and buyer validation.
+
+The older table of ₹500/run, ₹2,000/day and ₹10,000/month caps is superseded and non-operative. It conflicts with the hard-zero configuration and must not be used for execution.
+
+Revenue states must remain separate: quoted, contracted, delivered, invoiced, received, refunded and pending. Count realized revenue only after independent payment evidence and ledger reconciliation. No income is currently verified by this document.

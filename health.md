@@ -1,22 +1,13 @@
-# 💚 Health Score Algorithm
+# Health Score — Measurement Specification
+Status: not computed. Do not report a numerical health score until raw metrics and collection intervals exist.
 
-Health = Uptime×0.2 + Success×0.2 + Compliance×0.15 + Security×0.15
-       + Cost×0.1 + Satisfaction×0.1 + Learning×0.1
+Proposed dimensions:
+- Availability and recovery: measured runtime uptime, crash/restart recovery.
+- Task quality: independently verified accepted outputs / completed test cases.
+- Compliance and privacy: evidence-backed checklist results and incidents.
+- Security: current vulnerability findings, gate tests and permission audit.
+- Cost: actual spend and quota consumption.
+- Owner satisfaction: explicit feedback.
+- Learning: tested improvements that outperform a baseline without regressions.
 
-## Bands
-- 0-30: Critical
-- 31-50: Warning
-- 51-70: Good
-- 71-90: Excellent
-- 91-100: Legendary
-
-## Metrics
-| Metric | कैसे मापें |
-|---|---|
-| Uptime | UptimeRobot |
-| Success | GitHub Actions |
-| Compliance | compliance.md audit |
-| Security | Dependabot alerts |
-| Cost | cost.md |
-| Satisfaction | आपका feedback |
-| Learning | RSI cycles |
+Do not substitute GitHub CI success for phone uptime, production reliability or customer success. UptimeRobot, Android monitoring and continuous reporting are candidates until configured and verified. If any dimension is unknown, label it UNKNOWN rather than inventing a score.
