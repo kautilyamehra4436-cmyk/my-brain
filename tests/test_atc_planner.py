@@ -60,7 +60,9 @@ class ATCPlannerTests(unittest.TestCase):
         self.assertTrue(all(s["status"] == "plan_only" for s in r["plan_steps"]))
     def test_ledger_round_trip(self):
         r = self.planner.think("save record")
-        self.assertEqual(self.planner.ledger.get(r["record_id"])["goal"], "save record")
+        stored = self.planner.ledger.get(r["record_id"])
+        self.assertEqual(stored["goal"], "save record")
+        self.assertEqual(stored["ledger_hash"], r["ledger_hash"])
         self.assertTrue(self.planner.ledger.verify()["valid"])
     def test_ledger_tamper_detected(self):
         self.planner.think("first")
@@ -68,6 +70,24 @@ class ATCPlannerTests(unittest.TestCase):
             con.execute("UPDATE atc_events SET event_json='{}' WHERE seq=1")
             con.commit()
         self.assertFalse(self.planner.ledger.verify()["valid"])
+    def test_ledger_record_content_is_immutable(self):
+        record = self.planner.think("immutable record")
+        changed = dict(record)
+        changed["goal"] = "changed after commit"
+        with self.assertRaisesRegex(ValueError, "atc_record_is_immutable"):
+            self.planner.ledger.update_record(changed)
+        self.assertTrue(self.planner.ledger.verify()["valid"])
+
+    def test_ledger_hash_field_tamper_detected(self):
+        record = self.planner.think("ledger hash integrity")
+        tampered = dict(self.planner.ledger.get(record["record_id"]))
+        tampered["ledger_hash"] = "0" * 64
+        with closing(sqlite3_connect(self.db)) as con:
+            con.execute("UPDATE atc_records SET record_json=? WHERE record_id=?",
+                        (json.dumps(tampered), record["record_id"]))
+            con.commit()
+        self.assertFalse(self.planner.ledger.verify()["valid"])
+
     def test_record_tamper_detected(self):
         r = self.planner.think("record integrity")
         with closing(sqlite3_connect(self.db)) as con:
