@@ -1,0 +1,48 @@
+name: Advait Governed AI Developer v1
+on:
+  workflow_dispatch:
+    inputs:
+      model:
+        description: "OpenRouter model ID ending in :free"
+        required: true
+        type: string
+        default: "nvidia/nemotron-3.5-lightning:free"
+permissions:
+  contents: read
+concurrency:
+  group: advait-ai-developer-v1
+  cancel-in-progress: false
+jobs:
+  read-only-audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Run unit and compile checks
+        run: |
+          python -m unittest discover -v
+          python -m compileall -q core tests scripts
+      - name: Run read-only AI Developer audit
+        env:
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          MODEL_ID: ${{ inputs.model }}
+        run: |
+          if ! [[ "$MODEL_ID" =~ ^[A-Za-z0-9._/-]{1,180}:free$ ]]; then
+            echo "Blocked: model must end in :free"
+            exit 2
+          fi
+          python scripts/advait_ai_developer_v1.py \
+            --model "$MODEL_ID" \
+            --output "$RUNNER_TEMP/advait-ai-developer/report.json" \
+            --audit-db "$RUNNER_TEMP/advait-ai-developer/provider-audit.db"
+      - name: Upload read-only audit evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: advait-ai-developer-v1-report
+          path: ${{ runner.temp }}/advait-ai-developer/
+          if-no-files-found: ignore
+          retention-days: 7
