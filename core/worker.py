@@ -86,10 +86,10 @@ class BoundedWorker:
             "independent evidence verifier unavailable": "evidence_verifier_unavailable",
             "independent evidence verification failed; task remains running": "evidence_verification_failed",
             "sensitive_task_payload_blocked": "sensitive_task_payload_blocked",
-            "sensitive_material_must_not_be_persisted": "sensitive_output_blocked",
             "unknown risk; fail closed": "unknown_risk",
         }
         value_codes = {
+            "sensitive_material_must_not_be_persisted": "sensitive_output_blocked",
             "handler output exceeds configured byte limit": "handler_output_too_large",
             "handler must return exactly result and evidence objects": "invalid_handler_output",
             "result and evidence must be JSON objects": "invalid_handler_output",
