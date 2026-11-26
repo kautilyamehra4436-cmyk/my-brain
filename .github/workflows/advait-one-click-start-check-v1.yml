@@ -1,0 +1,63 @@
+name: Advait One-Click Start Check
+
+on:
+  workflow_dispatch:
+    inputs:
+      model:
+        description: "Free OpenRouter model (must end in :free)"
+        required: true
+        type: string
+        default: "nvidia/nemotron-3.5-lightning:free"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: advait-one-click-start-check
+  cancel-in-progress: false
+
+jobs:
+  readiness:
+    name: Tests + one bounded free-provider call
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Run complete unit test suite
+        run: python -m unittest discover -v
+
+      - name: Compile core and tests
+        run: python -m compileall -q core tests
+
+      - name: Validate model and run one free-provider smoke test
+        env:
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          MODEL_ID: ${{ inputs.model }}
+        run: |
+          python - <<'PY'
+          import os, re, sys
+          model = os.environ.get("MODEL_ID", "")
+          if not re.fullmatch(r"[A-Za-z0-9._/-]{1,180}:free", model):
+              print("BLOCKED: model ID must end in :free.")
+              sys.exit(2)
+          if not os.environ.get("OPENROUTER_API_KEY"):
+              print("BLOCKED: repository secret OPENROUTER_API_KEY is missing.")
+              sys.exit(2)
+          PY
+          python scripts/openrouter_smoke_v1.py --model "$MODEL_ID"
+
+      - name: Preserve metadata-only smoke audit
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: advait-one-click-audit
+          path: artifacts/openrouter_smoke_audit.db
+          if-no-files-found: ignore
+          retention-days: 7
