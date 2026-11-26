@@ -42,7 +42,7 @@ class ManagedTaskQueueV3Tests(unittest.TestCase):
             row=q.list_tasks()[0]
             self.assertEqual(row["status"],"failed")
             self.assertEqual(row["error"],"lease_expired_max_attempts")
-            self.assertIsNone(q.lease_status()["active_leases"] and q.lease_status()["active_leases"][0]["worker_id"])
+            self.assertEqual(q.lease_status()["active_leases"],[])
 
     def test_invalid_lease_settings_fail_closed(self):
         with tempfile.TemporaryDirectory() as tmp:
