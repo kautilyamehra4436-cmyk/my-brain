@@ -8,6 +8,8 @@ from core.task_queue import TaskQueue
 
 class ManagedTaskQueueV3(TaskQueue):
     """TaskQueue-compatible queue with leases, attempts and expired-lease recovery."""
+
+    requires_lease_owner = True
     def __init__(self, db_path="brain_tasks.db", *, default_lease_seconds=60, max_attempts=3):
         if not isinstance(default_lease_seconds,(int,float)) or isinstance(default_lease_seconds,bool) or default_lease_seconds<=0:
             raise ValueError("default_lease_seconds_must_be_positive")
