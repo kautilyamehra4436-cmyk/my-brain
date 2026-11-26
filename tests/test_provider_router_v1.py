@@ -18,7 +18,7 @@ class ProviderRouterTests(unittest.TestCase):
         self.router=ProviderRouterV1(ledger=self.ledger,environ={"OPENROUTER_API_KEY":"secret-fixture"})
     def tearDown(self): self.tmp.cleanup()
     def test_openai_blocked_by_zero_spend(self):
-        with self.assertRaisesRegex(ProviderPolicyError,"openai_api_disabled"):
+        with self.assertRaisesRegex(ProviderPolicyError,"provider_disabled_by_policy"):
             self.router.call(provider="openai",model="gpt-model",messages=[{"role":"user","content":"hi"}])
         self.assertEqual(self.ledger.events(),[])
     def test_openrouter_paid_model_blocked(self):
