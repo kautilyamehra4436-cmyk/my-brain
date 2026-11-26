@@ -16,8 +16,8 @@ Two distinct workspaces use one controlled knowledge layer:
 
 ### Central ledger foundation: `core/workspace_ledger.py`
 - Standard-library SQLite ledger with record IDs, timestamps, task IDs, source/evidence references and SHA-256 content digests.
-- Role-scoped search: agent sees agent-owned and shared records; owner sees all records.
-- Trusted host must inject `resolve_role(actor_id)`; missing/unknown identity fails closed.
+- Principal-scoped search: agent sees only its own private records plus explicitly shared records; owner sees all records.
+- Trusted host must inject `resolve_role(actor_id)`; missing/unknown identity fails closed. Each record stores its authenticated owner principal ID, so one agent identity cannot read another agent's private records.
 - Database triggers reject record/audit UPDATE and DELETE; corrections are new records.
 - Audit events for creation, search, read and denied reads.
 - No API keys, bank details, passwords or secrets should be stored.
