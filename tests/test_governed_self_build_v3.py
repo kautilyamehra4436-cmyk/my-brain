@@ -39,7 +39,14 @@ class GovernedFactoryTests(unittest.TestCase):
    task=rt.enqueue_tool_build(SPEC,{"text":"safe and bounded"})
    result=rt.run_until_idle(1)
    self.assertEqual(result["done"],1)
+   self.assertEqual(result["queue_version"],"ManagedTaskQueueV3")
+   self.assertEqual(result["lease_status"]["active_leases"],[])
    self.assertEqual(rt.queue.list_tasks()[0]["id"],task)
+
+ def test_runtime_uses_durable_lease_queue(self):
+  with tempfile.TemporaryDirectory() as d:
+   rt=GovernedSelfBuildRuntimeV3(d)
+   self.assertEqual(type(rt.queue).__name__,"ManagedTaskQueueV3")
 
  def test_task_limit_is_bounded(self):
   with tempfile.TemporaryDirectory() as d:
