@@ -53,6 +53,12 @@ class ProviderRouterTests(unittest.TestCase):
                 policy={"allow_openrouter_free_only": False},
             )
 
+    def test_runtime_policy_is_immutable_after_construction(self):
+        with self.assertRaises(TypeError):
+            self.router.policy["max_response_bytes"] = 99_000_000
+        with self.assertRaises(AttributeError):
+            self.router.policy = {"allow_paid_api": True}
+
     def test_caller_policy_cannot_raise_response_limit(self):
         with self.assertRaisesRegex(ProviderPolicyError, "response_limit"):
             ProviderRouterV1(
