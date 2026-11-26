@@ -9,7 +9,7 @@ class WorkspaceLedgerTests(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
         self.db = str(Path(self.tmp.name) / "workspace.sqlite3")
-        roles = {"owner-session": "owner", "agent-session": "agent"}
+        roles = {"owner-session": "owner", "agent-session": "agent", "agent-two-session": "agent"}
         self.ledger = WorkspaceLedger(self.db, resolve_role=roles.get)
 
     def tearDown(self):
@@ -28,6 +28,8 @@ class WorkspaceLedgerTests(unittest.TestCase):
         visible = {r["record_id"] for r in self.ledger.search("agent-session")}
         self.assertEqual(visible, {agent_private, shared})
         self.assertIsNone(self.ledger.get_record("agent-session", owner_private))
+        self.assertNotIn(agent_private, {r["record_id"] for r in self.ledger.search("agent-two-session")})
+        self.assertIsNone(self.ledger.get_record("agent-two-session", agent_private))
 
     def test_owner_can_search_all_records_and_provenance(self):
         private_id = self.ledger.create_record(
