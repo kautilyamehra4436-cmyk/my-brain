@@ -4,9 +4,11 @@ Default policy is USD 0: OpenAI paid API is blocked; OpenRouter :free only.
 This is a call adapter, not a daemon, scheduler, browser, or task executor.
 """
 from __future__ import annotations
-import hashlib, json, os, sqlite3, time, urllib.error, urllib.request, uuid
+import hashlib, json, os, time, urllib.error, urllib.request, uuid
 from dataclasses import dataclass
 from typing import Any
+
+from core.managed_sqlite_v1 import managed_connection
 
 DEFAULT_POLICY = {
     "max_cost_usd_per_call": 0.0, "max_cost_usd_per_day": 0.0,
@@ -56,10 +58,8 @@ class ProviderCallLedger:
                 BEFORE DELETE ON provider_calls BEGIN
                 SELECT RAISE(ABORT, 'provider audit is append-only'); END""")
     def _connect(self):
-        con = sqlite3.connect(self.db_path, timeout=10)
-        con.execute("PRAGMA journal_mode=WAL")
-        con.execute("PRAGMA foreign_keys=ON")
-        return con
+        """Return a managed connection context that always closes its handle."""
+        return managed_connection(self.db_path, timeout=10)
     def append(self, **event):
         with self._connect() as con:
             con.execute("""INSERT INTO provider_calls
