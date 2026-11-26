@@ -134,6 +134,8 @@ class BoundedWorkerTests(unittest.TestCase):
             self.queue.enqueue("Unsafe task", {"input": {"approval_token": "do-not-store"}})
         with self.assertRaisesRegex(ValueError, "sensitive_material"):
             self.queue.enqueue("Unsafe task", {"nested": [{"API-Key": "do-not-store"}]})
+        with self.assertRaisesRegex(ValueError, "sensitive_material"):
+            self.queue.enqueue("Unsafe task", {"input": "Bearer abcdefghijklmnopqrstuvwxyz"})
 
     def test_enqueue_rejects_oversized_payload(self):
         with self.assertRaisesRegex(ValueError, "payload_too_large"):
