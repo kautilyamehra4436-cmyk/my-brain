@@ -18,7 +18,7 @@ from typing import Any
 API = "https://api.github.com/repos/"
 MAX_FILE_BYTES = 80_000
 MAX_TOTAL_BYTES = 240_000
-MAX_FILES = len(FIXED_PATHS)
+MAX_FILES = 10
 TIMEOUT = 12
 FIXED_PATHS = (
     "README.md", "README.rst", "LICENSE", "LICENSE.md", "pyproject.toml",
