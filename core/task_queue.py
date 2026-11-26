@@ -1,9 +1,10 @@
 """SQLite task queue with evidence-gated completion and audit metadata."""
 import hashlib
 import json
-import sqlite3
 import time
 import uuid
+
+from core.managed_sqlite_v1 import managed_connection
 
 
 def _canonical(value):
@@ -16,10 +17,8 @@ class TaskQueue:
         self._init()
 
     def _connect(self):
-        con = sqlite3.connect(self.db_path, timeout=10)
-        con.execute("PRAGMA journal_mode=WAL")
-        con.execute("PRAGMA foreign_keys=ON")
-        return con
+        """Return a managed connection context that always closes its handle."""
+        return managed_connection(self.db_path, timeout=10)
 
     def _init(self):
         with self._connect() as con:
