@@ -2,7 +2,7 @@
 from pathlib import Path
 from core.atc_planner import ATCPlanner
 from core.atc_worker_bridge_v1 import ATCWorkerBridgeV1
-from core.managed_self_build_runtime_v3 import ManagedSelfBuildRuntimeV3
+from core.governed_self_build_runtime_v3 import GovernedSelfBuildRuntimeV3
 
 class ATCWorkerBridgeManagedV3(ATCWorkerBridgeV1):
     def __init__(self,data_dir: str | Path):
@@ -10,4 +10,4 @@ class ATCWorkerBridgeManagedV3(ATCWorkerBridgeV1):
         root.mkdir(parents=True,exist_ok=True)
         self.data_dir=root
         self.planner=ATCPlanner(root/"atc_thinking.db")
-        self.runtime=ManagedSelfBuildRuntimeV3(root/"worker")
+        self.runtime=GovernedSelfBuildRuntimeV3(root/"worker")
