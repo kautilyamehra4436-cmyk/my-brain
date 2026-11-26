@@ -53,6 +53,8 @@ def contains_sensitive_material(value, *, depth=0):
         if len(value) > 1000:
             return True
         return any(contains_sensitive_material(item, depth=depth + 1) for item in value)
+    elif isinstance(value, str):
+        return bool(SENSITIVE_TEXT.search(value))
     return False
 
 
