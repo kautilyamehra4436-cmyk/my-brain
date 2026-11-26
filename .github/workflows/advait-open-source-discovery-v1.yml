@@ -1,0 +1,57 @@
+name: Advait Open Source Discovery v1
+
+on:
+  workflow_dispatch:
+    inputs:
+      capability_query:
+        description: "Tool capability to discover (e.g. python csv data processing)"
+        required: true
+        type: string
+        default: "python csv data processing"
+      limit:
+        description: "Maximum candidate repositories (1-5)"
+        required: true
+        type: number
+        default: 5
+
+permissions:
+  contents: read
+
+concurrency:
+  group: advait-open-source-discovery-v1
+  cancel-in-progress: false
+
+jobs:
+  discover:
+    name: Discover and rank public open-source candidates
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Run complete test suite
+        run: python -m unittest discover -v
+      - name: Compile Advait modules
+        run: python -m compileall -q core tests scripts
+      - name: Search GitHub public repository metadata
+        env:
+          CAPABILITY_QUERY: ${{ inputs.capability_query }}
+          CANDIDATE_LIMIT: ${{ inputs.limit }}
+        run: |
+          if ! [[ "$CANDIDATE_LIMIT" =~ ^[1-5]$ ]]; then
+            echo "BLOCKED: limit must be 1 through 5."
+            exit 2
+          fi
+          python scripts/advait_discover_open_source_v1.py \
+            --query "$CAPABILITY_QUERY" --limit "$CANDIDATE_LIMIT" \
+            | tee "$RUNNER_TEMP/advait-open-source-discovery.json"
+      - name: Upload discovery report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: advait-open-source-discovery-report
+          path: ${{ runner.temp }}/advait-open-source-discovery.json
+          if-no-files-found: ignore
+          retention-days: 7
