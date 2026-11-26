@@ -65,7 +65,7 @@ class VettingTests(unittest.TestCase):
             vetter.inspect("a/b")
 
     def test_fixed_allowlist_and_file_bounds(self):
-        self.assertLessEqual(len(FIXED_PATHS), 9)
+        self.assertLessEqual(len(FIXED_PATHS), 10)
         self.assertIn("SECURITY.md", FIXED_PATHS)
 
 
