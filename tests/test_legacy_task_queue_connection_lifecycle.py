@@ -1,30 +1,35 @@
 """Regression test: legacy TaskQueue must close every SQLite connection."""
-import gc
+import sqlite3
 import tempfile
 import unittest
-import warnings
 from pathlib import Path
+from unittest.mock import patch
 
 from core.task_queue import TaskQueue
 
 
 class LegacyTaskQueueConnectionLifecycleTests(unittest.TestCase):
-    def test_queue_operations_do_not_emit_unclosed_connection_warnings(self):
+    def test_queue_operations_close_every_sqlite_connection(self):
+        original_connect = sqlite3.connect
+        opened = []
+
+        def tracked_connect(*args, **kwargs):
+            connection = original_connect(*args, **kwargs)
+            opened.append(connection)
+            return connection
+
         with tempfile.TemporaryDirectory() as tmp:
-            queue = TaskQueue(Path(tmp) / "nested" / "tasks.db")
-            with warnings.catch_warnings(record=True) as caught:
-                warnings.simplefilter("always", ResourceWarning)
+            with patch("core.task_queue.sqlite3.connect", side_effect=tracked_connect):
+                queue = TaskQueue(Path(tmp) / "nested" / "tasks.db")
                 queue.enqueue("lifecycle check", {"kind": "test"})
                 queue.list_tasks()
                 queue.audit_events()
-                gc.collect()
 
-            leaked = [
-                warning for warning in caught
-                if issubclass(warning.category, ResourceWarning)
-                and "sqlite3.Connection" in str(warning.message)
-            ]
-            self.assertEqual(leaked, [], "TaskQueue leaked SQLite connections")
+        self.assertGreaterEqual(len(opened), 4)
+        for connection in opened:
+            with self.subTest(connection=connection):
+                with self.assertRaises(sqlite3.ProgrammingError):
+                    connection.execute("SELECT 1")
 
 
 if __name__ == "__main__":
