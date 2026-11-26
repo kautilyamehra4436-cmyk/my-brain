@@ -25,7 +25,7 @@ SENSITIVE_SUFFIXES = (
 SENSITIVE_TEXT = re.compile(
     r"(?:\bBearer\s+[A-Za-z0-9._~+/=-]{12,}|-----BEGIN [A-Z ]*PRIVATE KEY-----|"
     r"(?:api[_-]?key|password|secret|authorization)\s*[:=]\s*\S+|"
-    r"\b(?:sk-[A-Za-z0-9_-]{16,}|ghp_[A-Za-z0-9]{20,}|github_pat_[A-Za-z0-9_]{20,})\b)",
+    r"\b(?:sk-[A-Za-z0-9_-]{16,}|ghp_[A-Za-z0-9]{20,}|github_pat_[A-Za-z0-9_]{20,}|AKIA[A-Z0-9]{16})\b)",
     re.IGNORECASE,
 )
 
@@ -60,7 +60,9 @@ def contains_sensitive_material(value, *, depth=0):
 
 def _safe_error_code(error):
     value = str(error).strip()
-    return value if re.fullmatch(r"[A-Za-z0-9_.:-]{1,120}", value) else "task_failed"
+    if re.fullmatch(r"[a-z][a-z0-9_]{0,79}", value) and not SENSITIVE_TEXT.search(value):
+        return value
+    return "task_failed"
 
 
 class TaskQueue:
