@@ -1,0 +1,54 @@
+name: Advait Self-Build Worker v2
+
+on:
+  workflow_dispatch:
+    inputs:
+      max_tasks:
+        description: "Maximum bounded tasks to process (1-5)"
+        required: true
+        type: number
+        default: 1
+
+permissions:
+  contents: read
+
+concurrency:
+  group: advait-self-build-worker-v2
+  cancel-in-progress: false
+
+jobs:
+  self-build:
+    name: Build and verify a local tool
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Run complete test suite
+        run: python -m unittest discover -v
+      - name: Compile Advait modules
+        run: python -m compileall -q core tests scripts
+      - name: Execute bounded self-build worker
+        env:
+          MAX_TASKS: ${{ inputs.max_tasks }}
+        run: |
+          if ! [[ "$MAX_TASKS" =~ ^[1-5]$ ]]; then
+            echo "BLOCKED: max_tasks must be 1 through 5."
+            exit 2
+          fi
+          python scripts/advait_self_build_worker_v2.py \
+            --db-dir "$RUNNER_TEMP/advait-self-build-v2" \
+            --enqueue-sample \
+            --max-tasks "$MAX_TASKS"
+      - name: Upload metadata-only SQLite task and tool records
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: advait-self-build-worker-v2-records
+          path: ${{ runner.temp }}/advait-self-build-v2/*.db
+          if-no-files-found: ignore
+          retention-days: 7
