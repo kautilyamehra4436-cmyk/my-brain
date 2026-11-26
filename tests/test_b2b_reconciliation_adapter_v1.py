@@ -75,6 +75,20 @@ class B2BAdapterVaultTests(unittest.TestCase):
             target.write_bytes(b"tampered")
             self.assertFalse(adapter.verify_evidence("task-1", result, evidence))
 
+    def test_retargeted_input_directory_symlink_fails_closed(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp) / "vault"
+            vault = FinancialRecordVaultV1(root)
+            outside = Path(tmp) / "outside"
+            outside.mkdir()
+            (outside / ("b" * 32 + ".csv")).write_bytes(SOURCE)
+            original = vault.input_dir
+            backup = Path(tmp) / "inputs-original"
+            original.rename(backup)
+            original.symlink_to(outside, target_is_directory=True)
+            with self.assertRaises(FinancialVaultError):
+                vault.read_input("b" * 32)
+
     def test_invalid_artifact_ids_and_symlinks_fail_closed(self):
         with tempfile.TemporaryDirectory() as tmp:
             vault = FinancialRecordVaultV1(Path(tmp) / "vault")
