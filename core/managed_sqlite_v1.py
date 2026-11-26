@@ -68,6 +68,7 @@ def managed_connection(
                 os.chmod(target, 0o600)
         con.execute(f"PRAGMA busy_timeout={max(1, int(float(timeout) * 1000))}")
         con.execute("PRAGMA foreign_keys=ON")
+        con.execute("PRAGMA secure_delete=ON")
         if target != ":memory:":
             con.execute("PRAGMA journal_mode=WAL")
         yield con
