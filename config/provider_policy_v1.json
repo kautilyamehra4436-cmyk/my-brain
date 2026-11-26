@@ -1,0 +1,28 @@
+{
+  "version": "1.0",
+  "status": "template_not_live",
+  "currency": "USD",
+  "max_cost_usd_per_call": 0.0,
+  "max_cost_usd_per_day": 0.0,
+  "allow_paid_api": false,
+  "allow_openrouter_free_only": true,
+  "allowed_providers": ["openrouter"],
+  "secret_environment_variables": {
+    "openrouter": "OPENROUTER_API_KEY",
+    "openai": "OPENAI_API_KEY"
+  },
+  "audit": {
+    "database": "advait_provider_audit.db",
+    "store_prompt_content": false,
+    "store_response_content": false,
+    "store_hashes_usage_status_latency": true,
+    "store_api_key": false
+  },
+  "notes": [
+    "OpenAI API is blocked under the current zero-spend policy.",
+    "OpenRouter calls must use a model identifier ending in :free.",
+    "No automatic paid fallback is permitted.",
+    "Free quota is finite and can be rate-limited.",
+    "No provider is live until a key is securely configured and a real call is verified."
+  ]
+}
