@@ -2,7 +2,7 @@
 
 **Updated:** 2026-11-26  
 **Version:** v9.0 + ATC v1.2 planning slice  
-**Evidence source:** current repository files and GitHub Actions run [45841540642](https://github.com/kautilyamehra4436-cmyk/my-brain/actions/runs/45841540642).
+**Evidence source:** current repository files and post-merge GitHub Actions run [45870913679](https://github.com/kautilyamehra4436-cmyk/my-brain/actions/runs/45870913679).
 
 ## Status by capability
 
@@ -13,7 +13,7 @@
 | Zero-cost guard | IMPLEMENTED; LIMITED | Helper tests zero cost, positive cost, sensitive actions, quota exhaustion and invalid cost; global enforcement across all adapters is not proven |
 | ATC v1.2 planner | IMPLEMENTED; TESTED | Deterministic rule-based draft planner; no LLM, live web research or execution |
 | SQLite task queue | IMPLEMENTED; TESTED | Enqueue/claim/audit; eligible claiming preserves plan-only tasks; completion requires injected verifier and evidence |
-| Bounded worker v0.1 | IMPLEMENTED IN THIS BRANCH; CI PASS | One eligible task per invocation, host-allowlisted handler only, zero-cost gate, exact owner-verifier hook for high/critical, independent evidence-verifier requirement; no default real-world adapters |
+| Bounded worker v0.1 | IMPLEMENTED; MERGED; CI PASS | One eligible task per invocation, host-allowlisted handler only, zero-cost gate, exact owner-verifier hook for high/critical, independent evidence-verifier requirement; no default real-world adapters |
 | Evidence verifier | INTERFACE ONLY | Injected callback contract; no deployed independent production verifier |
 | ATC handoff | IMPLEMENTED; LIMITED | Packages reviewed candidates as REVIEWED_NOT_AUTHORIZED; does not authorize or execute |
 | Money approval registry | POLICY CORRECTED IN THIS BRANCH | Exact owner approval is required by policy; hard-zero runtime still blocks money actions |
@@ -45,13 +45,12 @@
 
 ## Next implementation sequence
 
-1. Review/merge bounded worker v0.1 after its PR checks and code review.
-2. Add task leases, stale-running recovery, cancellation, bounded retry and idempotency/reconciliation.
-3. Wire zero-cost and risk checks at every adapter boundary and test bypass attempts.
-4. Implement independent task-specific verification; current verifier remains injected.
-5. Integrate the Personal Algorithm cycle into the task lifecycle.
-6. Add authenticated exact-action owner approval before enabling any external/high-risk capability.
-7. Add real, narrow local adapters (starting with synthetic-tested file/CSV work) only with path, size, privacy and evidence controls.
-8. Run synthetic integration tests, then Android/Termux tests, then a 24-hour soak.
+1. Add task leases, stale-running recovery, cancellation, bounded retry and idempotency/reconciliation.
+2. Wire zero-cost and risk checks at every adapter boundary and test bypass attempts.
+3. Implement independent task-specific verification; current verifier remains injected.
+4. Integrate the Personal Algorithm cycle into the task lifecycle.
+5. Add authenticated exact-action owner approval before enabling any external/high-risk capability.
+6. Add real, narrow local adapters (starting with the existing Advait B2B CSV engine; do not duplicate that module) with path, size, privacy and evidence controls.
+7. Run synthetic integration tests, then Android/Termux tests, then a 24-hour soak.
 
 **Resume point:** Step 1 — inspect the branch CI result and review the registry/test diff. Do not call the Brain an execution agent until Steps 2–6 are implemented and tested.
