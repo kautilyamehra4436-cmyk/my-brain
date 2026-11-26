@@ -11,6 +11,7 @@ if str(ROOT) not in sys.path:
 from core.governed_ai_developer_v2 import GovernedAIDeveloperV2
 from core.managed_provider_call_ledger_v2 import ManagedProviderCallLedgerV2
 from core.provider_router_v1 import ProviderRouterV1
+from scripts.safe_output import write_new_json
 
 
 def main():
@@ -23,13 +24,11 @@ def main():
         parser.error("model must end in :free; paid models are blocked")
     audit_db = Path(args.audit_db)
     output = Path(args.output)
-    audit_db.parent.mkdir(parents=True, exist_ok=True)
-    output.parent.mkdir(parents=True, exist_ok=True)
     ledger = ManagedProviderCallLedgerV2(str(audit_db))
     router = ProviderRouterV1(ledger=ledger)
     agent = GovernedAIDeveloperV2(root=ROOT, router=router)
     report = agent.run(model=args.model)
-    output.write_text(json.dumps(report, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    write_new_json(output, report)
     print(json.dumps({
         "status": "completed_read_only_with_lessons",
         "finding_count": report["finding_count"],
